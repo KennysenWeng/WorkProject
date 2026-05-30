@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>番茄鐘</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#ffffff; --ink:#1f2733; --muted:#6b7785;
+    --line:#e3e8ef; --brand:#2563eb; --brand-d:#1d4ed8; --ok:#16a34a;
+    --warn:#d97706; --danger:#dc2626; --chip:#eef2ff;
+    --shadow:0 1px 3px rgba(16,24,40,.08);
+  }
+  html.dark{
+    --bg:#0f141b; --card:#181f29; --ink:#e6edf3; --muted:#93a1b0;
+    --line:#2a3340; --brand:#3b82f6; --brand-d:#60a5fa; --chip:#1e2a42;
+    --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",
+      "Noto Sans CJK TC","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg); color:var(--ink); font-size:15px; line-height:1.5;
+  }
+  .wrap{max-width:720px; margin:0 auto; padding:20px 16px 48px;}
+  header{display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:4px;}
+  header h1{font-size:22px; margin:0;}
+  .badge{font-size:12px; padding:3px 9px; border-radius:999px; background:var(--chip); color:var(--brand-d);}
+  .hint{font-size:13px; color:var(--muted); margin:6px 0 16px;}
+  .spacer{flex:1 1 auto}
+
+  .bar{
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:10px 12px; box-shadow:var(--shadow); margin-bottom:14px;
+  }
+  .status{font-size:13px; color:var(--muted);}
+  .status .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#cbd5e1;margin-right:6px;vertical-align:middle}
+  .status.live .dot{background:var(--ok)}
+  .status.dirty .dot{background:var(--warn)}
+
+  button{
+    font:inherit; cursor:pointer; border:1px solid var(--line); background:var(--card);
+    color:var(--ink); padding:8px 12px; border-radius:9px; transition:.12s;
+  }
+  button:hover{filter:brightness(.97)}
+  button.primary{background:var(--brand); border-color:var(--brand); color:#fff}
+  button.primary:hover{background:var(--brand-d)}
+  button.ghost{background:transparent}
+  button.on{background:var(--brand); color:#fff; border-color:var(--brand)}
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); padding:16px; margin-bottom:16px;}
+  .card h2{font-size:15px; margin:0 0 12px}
+  label{display:block; font-size:13px; color:var(--muted); margin-bottom:4px}
+  input{
+    width:100%; font:inherit; color:var(--ink); padding:8px 10px;
+    border:1px solid var(--line); border-radius:8px; background:var(--card);
+  }
+  input:focus{outline:2px solid #c7d7fe; border-color:var(--brand)}
+
+  /* 番茄鐘 */
+  .pomo{display:flex; flex-wrap:wrap; align-items:flex-start; gap:20px}
+  .pomo-main{flex:1 1 240px}
+  .pomo-clock{font-variant-numeric:tabular-nums; font-size:54px; font-weight:700; letter-spacing:1px; line-height:1.1}
+  .pomo.run .pomo-clock{color:var(--brand-d)}
+  .pomo-mode{font-size:13px; padding:3px 10px; border-radius:999px; background:var(--chip); color:var(--brand-d)}
+  .pomo-mode.break{background:#dcfce7; color:#166534}
+  html.dark .pomo-mode.break{background:#0f2e1c; color:#4ade80}
+  .pomo-count{font-size:13px; color:var(--muted); margin-left:8px}
+  .pomo-ctrls{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap}
+  .pomo-side{flex:1 1 300px; display:flex; flex-direction:column; gap:10px}
+  .pomo-set{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; font-size:13px; color:var(--muted)}
+  .pomo-set > div{display:flex; align-items:flex-end; gap:4px}
+  .pomo-set label{margin-bottom:2px}
+  .pomo-set input[type=number]{width:64px}
+  .pomo-toggles{display:flex; flex-direction:column; gap:5px; font-size:13px; color:var(--muted)}
+  .pomo-toggles label{display:flex; gap:6px; align-items:center; color:inherit; margin:0}
+  .pomo-toggles input{width:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>🍅 番茄鐘</h1>
+    <span class="badge">離線單機版 · Mac / Windows 通用</span>
+    <span class="spacer"></span>
+    <button id="btnDark" class="ghost" title="切換深色模式">🌙 深色</button>
+  </header>
+  <p class="hint">純倒數計時。若勾選「自動記一筆工作紀錄」，會寫回硬碟上同一份 <code>工作紀錄資料.json</code>（需先連結資料夾）。</p>
+
+  <!-- 工具列：只有要自動記錄時才需要連結資料夾 -->
+  <div class="bar">
+    <button id="btnLink" class="primary" title="連結硬碟上的「工作紀錄」資料夾，讓自動記錄能寫回 JSON">連結工作資料夾</button>
+    <button id="btnReconnect" class="primary" style="display:none" title="接回上次連結的資料夾"></button>
+    <span class="spacer"></span>
+    <span id="status" class="status"><span class="dot"></span>尚未連結</span>
+  </div>
+
+  <!-- 番茄鐘 -->
+  <div class="card">
+    <div class="pomo" id="pomo">
+      <div class="pomo-main">
+        <div class="pomo-clock" id="pomoClock">25:00</div>
+        <div style="margin-top:6px">
+          <span class="pomo-mode" id="pomoMode">專注</span>
+          <span class="pomo-count" id="pomoCount">今天完成 🍅 ×0</span>
+        </div>
+        <div class="pomo-ctrls">
+          <button type="button" class="primary" id="pomoStart">開始</button>
+          <button type="button" class="ghost" id="pomoReset">重設</button>
+          <button type="button" class="ghost" id="pomoSkip">跳過這段</button>
+        </div>
+      </div>
+      <div class="pomo-side">
+        <div>
+          <label for="pomoTask">正在專注的工作（選填）</label>
+          <input type="text" id="pomoTask" placeholder="例如：寫月報、整理客戶資料">
+        </div>
+        <div class="pomo-set">
+          <div><label for="pomoFocus">專注</label><input type="number" id="pomoFocus" min="1" max="120" value="25">分</div>
+          <div><label for="pomoShort">短休</label><input type="number" id="pomoShort" min="1" max="60" value="5">分</div>
+          <div><label for="pomoLong">長休</label><input type="number" id="pomoLong" min="1" max="60" value="15">分</div>
+          <div><label for="pomoEvery">每幾輪長休</label><input type="number" id="pomoEvery" min="1" max="12" value="4">輪</div>
+        </div>
+        <div class="pomo-toggles">
+          <label><input type="checkbox" id="pomoBeep" checked> 結束時發出提示音</label>
+          <label><input type="checkbox" id="pomoAuto"> 自動接續下一段</label>
+          <label><input type="checkbox" id="pomoLog"> 完成專注時，自動記一筆工作紀錄</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+(function(){
+  // ============ 狀態（與工作紀錄表共用同樣的 localStorage / 資料夾） ============
+  var LS_DATA = "worklog_records_v2";
+  var LS_PREF = "worklog_prefs_v2";
+  var BACKUP_KEEP = 200;            // 備份只保留最近這麼多份，更舊的自動刪
+  var records = [];
+  var dirHandle = null;            // 連結的工作資料夾
+  var supportsFS = (typeof window.showDirectoryPicker === "function");
+  var localApi = /^https?:$/.test(location.protocol) && /^(127\.0\.0\.1|localhost)$/.test(location.hostname);
+  var localApiReady = false;       // Safari 版啟動器提供的本機寫檔服務
+  var dirty = false;               // 有未存檔變更（無資料夾時）
+  // 保留與工作紀錄表相同的 prefs 形狀，存回時才不會洗掉它的設定（dark/range…）
+  var prefs = { dark:false, range:"all", from:"", to:"",
+    pomo:{ date:"", count:0, focus:25, short:5, long:15, every:4, beep:true, auto:false, log:false } };
+  var audioCtx = null;
+
+  // ============ 小工具 ============
+  function $(id){ return document.getElementById(id); }
+  function pad(n){ return (n<10?"0":"")+n; }
+  function todayStr(){ var d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function nowStamp(){ var d=new Date(); return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+"_"+pad(d.getHours())+pad(d.getMinutes())+pad(d.getSeconds()); }
+  function nowTime(){ var d=new Date(); return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds()); }
+  function uid(){ return Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8); }
+  function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+  function setStatus(text, cls){ var el=$("status"); el.className="status"+(cls?" "+cls:""); el.innerHTML='<span class="dot"></span>'+esc(text); }
+  function markDirty(){ dirty=true; if(!dirHandle) setStatus("⚠ 已記在本機，尚未寫回硬碟（請按「連結工作資料夾」）", "dirty"); }
+
+  // ============ 偏好（與工作紀錄表共用） ============
+  function loadPrefs(){ try{ var p=JSON.parse(localStorage.getItem(LS_PREF)); if(p) prefs=Object.assign(prefs,p); }catch(e){} }
+  function savePrefs(){ try{ localStorage.setItem(LS_PREF, JSON.stringify(prefs)); }catch(e){} }
+  function applyDark(){ document.documentElement.classList.toggle("dark", !!prefs.dark); $("btnDark").textContent = prefs.dark ? "☀ 淺色" : "🌙 深色"; }
+
+  // ============ 本機暫存（與工作紀錄表共用） ============
+  function saveLocal(){ try{ localStorage.setItem(LS_DATA, JSON.stringify(records)); }catch(e){} }
+  function loadLocal(){ try{ var t=localStorage.getItem(LS_DATA); if(t){ var a=JSON.parse(t); if(Array.isArray(a)) return a; } }catch(e){} return null; }
+
+  // ============ File System Access（資料夾模式） ============
+  async function ensurePerm(handle){
+    var o={mode:"readwrite"};
+    if(await handle.queryPermission(o)==="granted") return true;
+    if(await handle.requestPermission(o)==="granted") return true;
+    return false;
+  }
+  async function writeFileInDir(dir, name, text){
+    var fh = await dir.getFileHandle(name, {create:true});
+    var w = await fh.createWritable(); await w.write(text); await w.close();
+  }
+  async function readRecordsFromDir(dir){
+    var fh = await dir.getFileHandle("工作紀錄資料.json", {create:false});
+    var txt = (await (await fh.getFile()).text()).trim();
+    var data = txt ? JSON.parse(txt) : [];
+    return Array.isArray(data) ? data : [];
+  }
+  async function localApiRead(name){
+    var r = await fetch("/api/read?name="+encodeURIComponent(name), {cache:"no-store"});
+    var j = await r.json();
+    if(!r.ok || !j.ok) throw new Error(j.error || "讀取失敗");
+    return Array.isArray(j.data) ? j.data : [];
+  }
+  async function localApiWrite(name, data, backup){
+    var r = await fetch("/api/write", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({name:name, data:data, backup:!!backup})
+    });
+    var j = await r.json();
+    if(!r.ok || !j.ok) throw new Error(j.error || "寫入失敗");
+  }
+  // 只保留最近 keep 份備份，更舊的自動刪除
+  async function pruneBackups(bdir, keep){
+    try{
+      var names = [];
+      for await (var name of bdir.keys()){
+        if(/^工作紀錄_.*\.json$/.test(name)) names.push(name);
+      }
+      if(names.length <= keep) return;
+      names.sort();                                   // 檔名含時間戳：由舊到新
+      var toDelete = names.slice(0, names.length - keep);
+      for(var i=0;i<toDelete.length;i++){ try{ await bdir.removeEntry(toDelete[i]); }catch(e){} }
+    }catch(e){ /* 清理失敗不影響存檔 */ }
+  }
+  // ---- 記住資料夾：與工作紀錄表共用同一個 IndexedDB，可自動接回 ----
+  var pendingDir = null;
+  function idbOpen(){
+    return new Promise(function(res,rej){
+      try{ var r=indexedDB.open("worklog_fs",1);
+        r.onupgradeneeded=function(){ r.result.createObjectStore("h"); };
+        r.onsuccess=function(){ res(r.result); }; r.onerror=function(){ rej(r.error); };
+      }catch(e){ rej(e); }
+    });
+  }
+  function idbSet(k,v){ return idbOpen().then(function(db){ return new Promise(function(res,rej){
+    var tx=db.transaction("h","readwrite"); tx.objectStore("h").put(v,k);
+    tx.oncomplete=function(){ db.close(); res(); }; tx.onerror=function(){ rej(tx.error); }; }); }); }
+  function idbGet(k){ return idbOpen().then(function(db){ return new Promise(function(res,rej){
+    var tx=db.transaction("h","readonly"); var rq=tx.objectStore("h").get(k);
+    rq.onsuccess=function(){ db.close(); res(rq.result); }; rq.onerror=function(){ rej(rq.error); }; }); }); }
+
+  // 連結／接回某個資料夾（番茄鐘不編輯舊資料，連結時以「檔案」為準）
+  async function connectDir(dir, silent){
+    dirHandle = dir;
+    localApiReady = false;
+    try{
+      var fileData = await readRecordsFromDir(dir);
+      if(fileData.length) records = fileData;
+    }catch(e){ /* 檔案不存在＝新資料夾，沿用本機暫存 */ }
+    saveLocal();
+    dirty = false;
+    setStatus("已連結資料夾：" + dir.name + " · 自動記錄會寫回 JSON", "live");
+    $("btnReconnect").style.display="none"; pendingDir=null;
+  }
+
+  async function connectLocalApi(){
+    try{
+      var fileData = await localApiRead("工作紀錄資料.json");
+      if(fileData.length) records = fileData;
+      localApiReady = true;
+      saveLocal();
+      dirty = false;
+      if(!supportsFS){
+        $("btnLink").disabled=true;
+        $("btnLink").className="ghost";
+        $("btnLink").textContent="Safari 本機存檔已啟用";
+        $("btnLink").title="由 Safari 版啟動器提供本機存檔服務。";
+      }
+      setStatus("本機 JSON 存檔啟用 · 自動記錄會寫回 JSON", "live");
+    }catch(e){
+      localApiReady = false;
+      setStatus("Safari 本機存檔服務連線失敗，請重新雙擊「Safari 版啟動.command」", "dirty");
+    }
+  }
+
+  async function linkFolder(){
+    if(!supportsFS){ alert("此瀏覽器不支援寫回硬碟。\n（建議用 Chrome 或 Edge；自動記錄會暫存在本機 localStorage，工作紀錄表用同一個瀏覽器開啟時可讀到）"); return; }
+    try{
+      var dir = await window.showDirectoryPicker({ mode:"readwrite" });
+      if(!(await ensurePerm(dir))){ alert("沒有取得讀寫權限。"); return; }
+      await connectDir(dir, false);
+      try{ await idbSet("dir", dir); }catch(e){}   // 記住，下次自動接回
+    }catch(e){ if(e && e.name!=="AbortError") alert("連結資料夾失敗："+e.message); }
+  }
+
+  function showReconnect(dir){
+    pendingDir=dir; var b=$("btnReconnect");
+    b.style.display=""; b.textContent="🔗 接回上次的資料夾（"+dir.name+"）";
+    setStatus("上次的資料夾，按一下即可接回", "dirty");
+  }
+  async function reconnectClick(){
+    if(!pendingDir) return;
+    try{
+      var p=await pendingDir.requestPermission({mode:"readwrite"});
+      if(p==="granted"){ await connectDir(pendingDir, false); try{ await idbSet("dir", pendingDir); }catch(e){} }
+      else alert("沒有取得權限，無法接回。");
+    }catch(e){ alert("接回失敗："+e.message); }
+  }
+  // 開頁時嘗試自動接回上次的資料夾
+  async function tryAutoReconnect(){
+    if(!supportsFS) return;
+    var dir; try{ dir = await idbGet("dir"); }catch(e){ return; }
+    if(!dir) return;
+    var perm; try{ perm = await dir.queryPermission({mode:"readwrite"}); }catch(e){ return; }
+    if(perm==="granted"){ try{ await connectDir(dir, true); }catch(e){} }   // 直接自動接回
+    else { showReconnect(dir); }                                           // 需按一下（瀏覽器安全限制）
+  }
+
+  // 寫回：本機暫存 +（若已連結）寫回資料夾 + 時間戳備份
+  async function persist(){
+    saveLocal();
+    if(localApiReady){
+      try{
+        await localApiWrite("工作紀錄資料.json", records, true);
+        dirty = false;
+        setStatus("已記一筆並自動存檔 · "+nowTime(), "live");
+      }catch(e){ setStatus("寫回 JSON 失敗（資料已暫存本機）", "dirty"); }
+    }else if(dirHandle){
+      try{
+        await writeFileInDir(dirHandle, "工作紀錄資料.json", JSON.stringify(records, null, 2));
+        try{
+          var bdir = await dirHandle.getDirectoryHandle("備份", {create:true});
+          await writeFileInDir(bdir, "工作紀錄_"+nowStamp()+".json", JSON.stringify(records, null, 2));
+          await pruneBackups(bdir, BACKUP_KEEP);
+        }catch(be){ /* 備份失敗不影響主存檔 */ }
+        dirty = false;
+        setStatus("已記一筆並自動存檔 · "+nowTime(), "live");
+      }catch(e){ setStatus("寫回 JSON 失敗（資料已暫存本機）", "dirty"); }
+    }else{
+      markDirty();
+    }
+  }
+
+  // ============ 提示音 ============
+  function unlockAudio(){
+    try{ var Ctx=window.AudioContext||window.webkitAudioContext; if(Ctx && !audioCtx) audioCtx=new Ctx();
+      if(audioCtx && audioCtx.state==="suspended") audioCtx.resume(); }catch(e){}
+  }
+  function beep(){
+    if(!prefs.pomo.beep || !audioCtx) return;
+    try{
+      [0,0.18,0.36].forEach(function(t){
+        var o=audioCtx.createOscillator(), g=audioCtx.createGain();
+        o.type="sine"; o.frequency.value=880; o.connect(g); g.connect(audioCtx.destination);
+        var now=audioCtx.currentTime+t;
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.exponentialRampToValueAtTime(0.3, now+0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, now+0.15);
+        o.start(now); o.stop(now+0.17);
+      });
+    }catch(e){}
+  }
+
+  // 記一筆工作紀錄：先把最新資料讀回來再附加，避免蓋掉工作紀錄表的新增
+  async function logPomodoro(rec){
+    rec.id = uid();
+    if(dirHandle){
+      try{ records = await readRecordsFromDir(dirHandle); }catch(e){ /* 讀不到就沿用記憶體 */ }
+    }else{
+      var local = loadLocal(); if(local) records = local;
+    }
+    records.push(rec);
+    await persist();
+  }
+
+  // ============ 番茄鐘 ============
+  var pomo = { mode:"focus", remaining:25*60, running:false, iv:null, cycle:0 };
+
+  function pomoDur(mode){ var p=prefs.pomo; return (mode==="focus"?p.focus:(mode==="long"?p.long:p.short))*60; }
+  function ensureTodayCount(){ var t=todayStr(); if(prefs.pomo.date!==t){ prefs.pomo.date=t; prefs.pomo.count=0; savePrefs(); } }
+  function pomoModeLabel(){ return pomo.mode==="focus"?"專注":(pomo.mode==="long"?"長休息":"短休息"); }
+  function pomoRender(){
+    var m=Math.floor(pomo.remaining/60), s=pomo.remaining%60, disp=pad(m)+":"+pad(s);
+    $("pomoClock").textContent=disp;
+    var label=pomoModeLabel(), mEl=$("pomoMode");
+    mEl.textContent=label; mEl.classList.toggle("break", pomo.mode!=="focus");
+    $("pomoCount").textContent="今天完成 🍅 ×"+prefs.pomo.count;
+    $("pomo").classList.toggle("run", pomo.running);
+    $("pomoStart").textContent=pomo.running?"暫停":"開始";
+    document.title = pomo.running ? "("+disp+") "+label+" — 番茄鐘" : "番茄鐘";
+  }
+  function pomoStart(){ unlockAudio(); ensureTodayCount(); pomo.running=true; clearInterval(pomo.iv); pomo.iv=setInterval(pomoTick,1000); pomoRender(); }
+  function pomoStop(){ pomo.running=false; clearInterval(pomo.iv); pomoRender(); }
+  function pomoToggle(){ pomo.running?pomoStop():pomoStart(); }
+  function pomoTick(){ pomo.remaining--; if(pomo.remaining<=0) pomoComplete(); else pomoRender(); }
+  function pomoComplete(){
+    clearInterval(pomo.iv); pomo.running=false; beep();
+    if(pomo.mode==="focus"){
+      ensureTodayCount(); prefs.pomo.count++; savePrefs(); pomo.cycle++;
+      if(prefs.pomo.log){
+        var task=$("pomoTask").value.trim()||"番茄鐘專注";
+        logPomodoro({ date:todayStr(), start:"", end:"", content:task,
+          hours:Math.round(prefs.pomo.focus/60*100)/100, project:"", status:"進行中", notes:"🍅 番茄鐘" });
+      }
+      pomo.mode=(pomo.cycle % prefs.pomo.every===0)?"long":"short";
+    }else{
+      pomo.mode="focus";
+    }
+    pomo.remaining=pomoDur(pomo.mode);
+    pomoRender();
+    if(prefs.pomo.auto) pomoStart();
+  }
+  function pomoReset(){ pomoStop(); pomo.mode="focus"; pomo.cycle=0; pomo.remaining=pomoDur("focus"); pomoRender(); }
+  function pomoSkip(){ pomoStop(); pomo.mode=(pomo.mode==="focus")?"short":"focus"; pomo.remaining=pomoDur(pomo.mode); pomoRender(); }
+  function pomoLoadInputs(){
+    var p=prefs.pomo;
+    $("pomoFocus").value=p.focus; $("pomoShort").value=p.short; $("pomoLong").value=p.long; $("pomoEvery").value=p.every;
+    $("pomoBeep").checked=!!p.beep; $("pomoAuto").checked=!!p.auto; $("pomoLog").checked=!!p.log;
+  }
+  function pomoSettingsChanged(){
+    var p=prefs.pomo;
+    p.focus=Math.min(120,Math.max(1,parseInt($("pomoFocus").value)||25));
+    p.short=Math.min(60,Math.max(1,parseInt($("pomoShort").value)||5));
+    p.long=Math.min(60,Math.max(1,parseInt($("pomoLong").value)||15));
+    p.every=Math.min(12,Math.max(1,parseInt($("pomoEvery").value)||4));
+    p.beep=$("pomoBeep").checked; p.auto=$("pomoAuto").checked; p.log=$("pomoLog").checked;
+    savePrefs();
+    if(!pomo.running){ pomo.remaining=pomoDur(pomo.mode); pomoRender(); }
+  }
+
+  // ============ 啟動 ============
+  function init(){
+    loadPrefs(); applyDark();
+
+    if(!supportsFS){
+      $("btnLink").disabled=true;
+      $("btnLink").className="ghost";
+      if(localApi){
+        $("btnLink").textContent="正在啟用 Safari 本機存檔";
+        $("btnLink").title="由 Safari 版啟動器提供本機存檔服務。";
+        setStatus("正在連接 Safari 本機存檔服務", "dirty");
+      }else{
+        $("btnLink").textContent="Safari 不支援連結資料夾";
+        $("btnLink").title="Safari 無法直接連結資料夾；若要讓番茄鐘自動寫回 JSON，請改用 Chrome / Edge。";
+        setStatus("此瀏覽器只暫存本機（同瀏覽器的工作紀錄表可讀到）", "");
+      }
+    }
+    var local=loadLocal(); if(local) records=local;
+
+    ensureTodayCount();
+    pomoLoadInputs();
+    pomo.mode="focus"; pomo.cycle=0; pomo.remaining=pomoDur("focus"); pomoRender();
+
+    $("btnDark").addEventListener("click", function(){ prefs.dark=!prefs.dark; savePrefs(); applyDark(); });
+    $("btnLink").addEventListener("click", linkFolder);
+    $("btnReconnect").addEventListener("click", reconnectClick);
+    $("pomoStart").addEventListener("click", pomoToggle);
+    $("pomoReset").addEventListener("click", pomoReset);
+    $("pomoSkip").addEventListener("click", pomoSkip);
+    ["pomoFocus","pomoShort","pomoLong","pomoEvery"].forEach(function(id){ $(id).addEventListener("change", pomoSettingsChanged); });
+    ["pomoBeep","pomoAuto","pomoLog"].forEach(function(id){ $(id).addEventListener("change", pomoSettingsChanged); });
+
+    // 離開前未存檔提醒
+    window.addEventListener("beforeunload", function(e){ if(dirty){ e.preventDefault(); e.returnValue=""; } });
+
+    // 嘗試自動接回上次的資料夾
+    tryAutoReconnect();
+    if(localApi) connectLocalApi();
+  }
+
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
+</script>
+</body>
+</html>

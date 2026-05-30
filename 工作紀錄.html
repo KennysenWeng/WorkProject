@@ -1,0 +1,1836 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工作紀錄表</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#ffffff; --ink:#1f2733; --muted:#6b7785;
+    --line:#e3e8ef; --brand:#2563eb; --brand-d:#1d4ed8; --ok:#16a34a;
+    --warn:#d97706; --danger:#dc2626; --chip:#eef2ff; --bar:#93c5fd;
+    --shadow:0 1px 3px rgba(16,24,40,.08);
+  }
+  html.dark{
+    --bg:#0f141b; --card:#181f29; --ink:#e6edf3; --muted:#93a1b0;
+    --line:#2a3340; --brand:#3b82f6; --brand-d:#60a5fa; --chip:#1e2a42; --bar:#1d4ed8;
+    --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,"Segoe UI","PingFang TC","Microsoft JhengHei",
+      "Noto Sans CJK TC","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg); color:var(--ink); font-size:15px; line-height:1.5;
+  }
+  .wrap{max-width:1120px; margin:0 auto; padding:20px 16px 64px;}
+  header{display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:4px;}
+  header h1{font-size:22px; margin:0;}
+  .badge{font-size:12px; padding:3px 9px; border-radius:999px; background:var(--chip); color:var(--brand-d);}
+  .hint{font-size:13px; color:var(--muted); margin:6px 0 16px;}
+  .spacer{flex:1 1 auto}
+
+  .bar{
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:10px 12px; box-shadow:var(--shadow); margin-bottom:14px;
+  }
+  .status{font-size:13px; color:var(--muted);}
+  .status .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#cbd5e1;margin-right:6px;vertical-align:middle}
+  .status.live .dot{background:var(--ok)}
+  .status.dirty .dot{background:var(--warn)}
+
+  button{
+    font:inherit; cursor:pointer; border:1px solid var(--line); background:var(--card);
+    color:var(--ink); padding:8px 12px; border-radius:9px; transition:.12s;
+  }
+  button:hover{filter:brightness(.97)}
+  button.primary{background:var(--brand); border-color:var(--brand); color:#fff}
+  button.primary:hover{background:var(--brand-d)}
+  button.ghost{background:transparent}
+  button.tiny{padding:4px 9px; font-size:13px; border-radius:7px}
+  button.danger{color:var(--danger); border-color:#f3c8c8}
+  button.danger:hover{background:rgba(220,38,38,.08)}
+  button.on{background:var(--brand); color:#fff; border-color:var(--brand)}
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); padding:16px; margin-bottom:16px;}
+  .card h2{font-size:15px; margin:0 0 12px}
+
+  form .grid{display:grid; grid-template-columns:140px 1fr 110px 1fr; gap:12px;}
+  form .grid .full{grid-column:1 / -1}
+  label{display:block; font-size:13px; color:var(--muted); margin-bottom:4px}
+  input,select,textarea{
+    width:100%; font:inherit; color:var(--ink); padding:8px 10px;
+    border:1px solid var(--line); border-radius:8px; background:var(--card);
+  }
+  input:focus,select:focus,textarea:focus{outline:2px solid #c7d7fe; border-color:var(--brand)}
+  textarea{resize:vertical; min-height:38px}
+  .form-actions{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap}
+  .time-row{display:flex; gap:8px; align-items:flex-end}
+  .time-row > div{flex:1}
+  .timer-btn{white-space:nowrap}
+  .timer-live{font-variant-numeric:tabular-nums; font-weight:600; color:var(--brand-d); align-self:center}
+
+  .stats{display:flex; flex-wrap:wrap; gap:10px}
+  .stat{flex:1 1 140px; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px 12px}
+  .stat .k{font-size:12px; color:var(--muted)}
+  .stat .v{font-size:20px; font-weight:600}
+
+  .charts{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:14px}
+  .chart-box .ttl{font-size:12px; color:var(--muted); margin-bottom:6px}
+  svg{width:100%; height:auto; display:block}
+  .proj-rows .row{display:flex; align-items:center; gap:8px; margin:4px 0; font-size:13px}
+  .proj-rows .name{flex:0 0 110px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .proj-rows .track{flex:1; background:var(--bg); border-radius:6px; height:14px; overflow:hidden}
+  .proj-rows .fill{height:100%; background:var(--brand)}
+  .proj-rows .val{flex:0 0 auto; color:var(--muted)}
+
+  .filters{display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end}
+  .seg{display:inline-flex; border:1px solid var(--line); border-radius:9px; overflow:hidden}
+  .seg button{border:0; border-radius:0; border-right:1px solid var(--line)}
+  .seg button:last-child{border-right:0}
+  .range-custom{display:none; gap:8px; align-items:flex-end}
+  .range-custom.show{display:flex}
+  .filter-summary{font-size:13px; color:var(--muted); margin:10px 0 6px}
+  .filter-summary b{color:var(--ink)}
+
+  table{width:100%; border-collapse:collapse; font-size:14px}
+  th,td{padding:9px 10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top}
+  th{font-size:12px; color:var(--muted); font-weight:600; white-space:nowrap}
+  tbody tr:hover{background:var(--bg)}
+  td.num{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap}
+  td.date,td.time{white-space:nowrap}
+  tr.group td{background:var(--bg); font-weight:600; font-size:13px}
+  tr.group .gsum{float:right; color:var(--muted); font-weight:500}
+  .pill{font-size:12px; padding:2px 8px; border-radius:999px; white-space:nowrap}
+  /* pill 顏色＝甘特圖長條同色相（進行中黃／完成綠／暫停藍／未開始灰／逾期紅） */
+  .pill.進行中{background:#fef3c7; color:#92400e}
+  .pill.完成{background:#dcfce7; color:#166534}
+  .pill.暫停{background:#dbeafe; color:#1e40af}
+  html.dark .pill.進行中{background:#3b2f12; color:#fbbf24}
+  html.dark .pill.完成{background:#0f2e1c; color:#4ade80}
+  html.dark .pill.暫停{background:#1e3a5f; color:#93c5fd}
+  .empty{text-align:center; color:var(--muted); padding:28px}
+  .rowact{display:flex; gap:6px; white-space:nowrap}
+
+  .pager{display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:12px; font-size:13px; color:var(--muted)}
+  .pager .pages{font-variant-numeric:tabular-nums}
+  .pager .grow{flex:1 1 auto}
+  .pager .psize{display:flex; align-items:center; gap:6px}
+  .pager .psize select{width:auto; padding:4px 8px; margin:0}
+  .pager button[disabled]{opacity:.45; cursor:default}
+
+  details.help{margin-bottom:16px; background:#fffbea; border:1px solid #fde68a; border-radius:10px; padding:10px 14px}
+  html.dark details.help{background:#2a2410; border-color:#5c4d12}
+  details.help summary{cursor:pointer; font-weight:600; color:#92400e}
+  html.dark details.help summary{color:#fbbf24}
+  details.help ol{margin:8px 0 0; padding-left:20px}
+  details.help li{margin:4px 0}
+  code{background:var(--bg); padding:1px 5px; border-radius:5px; font-size:13px}
+
+  /* 視圖切換頁籤 */
+  .tabs{margin-bottom:14px}
+  .tabs .seg button{padding:9px 16px; font-size:14px}
+
+  /* 專案表單格線 */
+  .pgrid{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px}
+  .pgrid .full{grid-column:1 / -1}
+  .pgrid .span2{grid-column:span 2}
+
+  /* 專案狀態 pill（補未開始 / 逾期） */
+  .pill.未開始{background:#e2e8f0; color:#475569}
+  .pill.逾期{background:#fee2e2; color:#991b1b}
+  html.dark .pill.未開始{background:#222b36; color:#94a3b8}
+  html.dark .pill.逾期{background:#3b1717; color:#fca5a5}
+  .pill.pclick{cursor:pointer; user-select:none}
+  .pill.pclick:hover{filter:brightness(.95); box-shadow:0 0 0 2px rgba(0,0,0,.08) inset}
+  html.dark .pill.pclick:hover{filter:brightness(1.15)}
+  /* 點狀態跳出的選單 */
+  .smenu{position:fixed; z-index:1000; background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,.18); padding:4px; min-width:132px}
+  .smenu button{display:flex; align-items:center; gap:8px; width:100%; text-align:left; border:0; background:transparent; padding:6px 8px; border-radius:7px; cursor:pointer}
+  .smenu button:hover,.smenu button.cur{background:var(--bg)}
+  .smenu .smk{margin-left:auto; color:var(--brand); font-weight:700}
+
+  /* 清單內的迷你進度條 */
+  .minibar{display:flex; align-items:center; gap:6px; min-width:90px}
+  .minibar .track{flex:1; background:var(--bg); border:1px solid var(--line); border-radius:6px; height:10px; overflow:hidden}
+  .minibar .fill{height:100%; background:var(--brand)}
+  .minibar .pct{font-size:12px; color:var(--muted); white-space:nowrap}
+
+  /* 甘特圖 */
+  /* 只顯示約 7 列（含月份表頭），多的用滾輪：18(表頭)+7×24(列)+7×6(間距)=228 */
+  .gantt{display:flex; flex-direction:column; gap:6px; margin-top:8px; max-height:228px; overflow-y:auto}
+  .g-head{position:sticky; top:0; z-index:2; background:var(--card)}
+  .g-row{display:flex; align-items:center; gap:8px; font-size:13px}
+  .g-name{flex:0 0 130px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .g-track{position:relative; flex:1; height:24px; background:var(--bg); border:1px solid var(--line); border-radius:6px; overflow:hidden}
+  .g-bar{position:absolute; top:3px; height:16px; border-radius:5px; background:var(--bar); min-width:4px; overflow:hidden}
+  .g-bar .g-fill{position:absolute; left:0; top:0; bottom:0; background:var(--brand)}
+  .g-bar.進行中{background:#fde68a} .g-bar.進行中 .g-fill{background:var(--warn)}
+  .g-bar.完成{background:#bbf7d0} .g-bar.完成 .g-fill{background:var(--ok)}
+  .g-bar.未開始{background:#e2e8f0} .g-bar.未開始 .g-fill{background:#94a3b8}
+  .g-bar.暫停{background:#bfdbfe} .g-bar.暫停 .g-fill{background:var(--brand)}
+  .g-bar.逾期{box-shadow:0 0 0 2px var(--danger) inset}
+  html.dark .g-bar.進行中{background:#3b2f12} html.dark .g-bar.完成{background:#14402a}
+  html.dark .g-bar.未開始{background:#2a3340} html.dark .g-bar.暫停{background:#1e3a5f}
+  .g-today{position:absolute; top:0; bottom:0; width:2px; background:var(--danger); opacity:.75; z-index:2}
+  .g-months{position:relative; flex:1; height:18px}
+  .g-month{position:absolute; top:0; border-left:1px solid var(--line); padding-left:3px; font-size:11px; color:var(--muted); white-space:nowrap}
+  .gantt-legend{display:flex; flex-wrap:wrap; gap:12px; font-size:12px; color:var(--muted); margin-bottom:8px}
+  .gantt-legend .li{display:inline-flex; align-items:center; gap:5px}
+  .gantt-legend .sw{width:12px; height:12px; border-radius:3px; display:inline-block; border:1px solid var(--line)}
+  /* 甘特里程碑標記（子項目目標日） */
+  .g-ms{position:absolute; top:50%; transform:translate(-50%,-50%); z-index:3; font-size:13px; line-height:1; color:var(--brand-d); cursor:default}
+  .g-ms.done{color:var(--ok)}
+  .g-ms.over{color:var(--danger)}
+
+  /* 專案子項目（展開式勾選清單） */
+  .pcaret{cursor:pointer; user-select:none; margin-right:4px; color:var(--muted)}
+  .pcount{font-size:12px; color:var(--muted); margin-left:6px}
+  .subrow td{background:var(--bg)}
+  /* 「已完成」可收合分隔列 */
+  .psection td{background:var(--bg); padding:6px 12px}
+  .psec-toggle{cursor:pointer; user-select:none; font-size:13px; font-weight:600; color:var(--muted)}
+  .psec-toggle:hover{color:var(--ink)}
+  .checklist{display:flex; flex-direction:column; gap:6px; padding:4px 0 2px}
+  .ci{display:flex; align-items:center; gap:8px}
+  .ci input[type=checkbox]{width:auto; flex:0 0 auto; margin:0; padding:0}
+  .ci .ci-title{flex:1; min-width:0; border:1px solid transparent; background:transparent; padding:4px 6px}
+  .ci .ci-title:focus{border-color:var(--brand); background:var(--card)}
+  .ci .ci-date{width:auto; flex:0 0 auto; padding:4px 6px}
+  .ci.done .ci-title{text-decoration:line-through; color:var(--muted)}
+  .ci-add .ci-plus{color:var(--muted); width:18px; text-align:center}
+
+  /* 卡片標題列（標題 + 切換鈕） */
+  .card-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px}
+  .card-head h2{margin:0}
+
+  /* 象限小色點（清單裡唯讀顯示用） */
+  .qdot{display:inline-block; width:10px; height:10px; border-radius:50%; vertical-align:middle; flex:0 0 auto; background:var(--muted)}
+  .qdot.q1{background:var(--danger)} .qdot.q2{background:var(--brand)} .qdot.q3{background:var(--warn)} .qdot.q4{background:#94a3b8} .qdot.q0{background:#cbd5e1}
+  .qn{color:var(--muted); font-weight:500; font-size:12px; margin-left:4px}
+
+  /* 四象限矩陣 */
+  .matrix{display:grid; grid-template-columns:26px 1fr 1fr; grid-template-rows:auto 1fr 1fr; gap:8px}
+  .mx-axis{display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; color:var(--muted)}
+  .mx-axis.mx-top{align-self:end; padding-bottom:2px}
+  .mx-axis.mx-left{writing-mode:vertical-rl; letter-spacing:2px}
+  .mx-cell{border:1px solid var(--line); border-radius:10px; padding:8px; background:var(--bg); min-height:110px; transition:outline .1s}
+  .mx-cell.q1{background:rgba(220,38,38,.06)} .mx-cell.q2{background:rgba(37,99,235,.06)}
+  .mx-cell.q3{background:rgba(217,119,6,.06)} .mx-cell.q4{background:rgba(100,116,139,.08)}
+  .mx-over{outline:2px dashed var(--brand); outline-offset:-2px}
+  .mx-h{font-size:12px; font-weight:600; color:var(--muted); margin-bottom:6px}
+  .mx-empty{color:var(--muted); font-size:12px; padding:6px 0}
+  /* 每格最多約顯示 5 張卡片，多的用滾輪捲動 */
+  .mx-list{max-height:240px; overflow-y:auto}
+  .mx-card{background:var(--card); border:1px solid var(--line); border-left:4px solid #cbd5e1; border-radius:8px; padding:5px 8px; margin-bottom:6px; cursor:grab; box-shadow:var(--shadow)}
+  .mx-card:last-child{margin-bottom:0}
+  .mx-card.q1{border-left-color:var(--danger)} .mx-card.q2{border-left-color:var(--brand)} .mx-card.q3{border-left-color:var(--warn)} .mx-card.q4{border-left-color:#94a3b8}
+  .mx-card.dragging{opacity:.4}
+  .mx-card .mx-t{display:block; font-size:13px; line-height:1.3}
+  .mx-card .mx-p{display:block; font-size:11px; color:var(--muted)}
+  .mx-card.done .mx-t{text-decoration:line-through; color:var(--muted)}
+  .mx-tray{margin-top:12px; border:1px dashed var(--line); border-radius:10px; padding:8px; display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start}
+  .mx-tray .mx-h{width:100%; margin:0 0 2px}
+  .mx-tray .mx-card{margin:0; min-width:150px}
+
+  /* 月報彈窗 */
+  .overlay{position:fixed; inset:0; background:rgba(15,20,27,.55); display:none; align-items:flex-start; justify-content:center; padding:24px; overflow:auto; z-index:50}
+  .overlay.show{display:flex}
+  .report{background:#fff; color:#111; width:min(820px,100%); border-radius:12px; padding:24px 28px;}
+  .report h2{margin:0 0 4px; font-size:20px}
+  .report .sub{color:#555; font-size:13px; margin-bottom:16px}
+  .report table{font-size:13px}
+  .report th,.report td{border-bottom:1px solid #e5e7eb; color:#111}
+  .report .rsum td{font-weight:700; border-top:2px solid #999}
+  .report-actions{display:flex; gap:8px; justify-content:flex-end; margin-top:16px}
+  .report-tools{display:flex; gap:8px; align-items:flex-end; margin-bottom:16px}
+
+  @media(max-width:760px){
+    form .grid{grid-template-columns:1fr 1fr}
+    form .grid .full{grid-column:1 / -1}
+    .pgrid{grid-template-columns:1fr 1fr}
+    .pgrid .span2{grid-column:1 / -1}
+    .charts{grid-template-columns:1fr}
+    .hide-sm{display:none}
+    .g-name{flex:0 0 88px}
+    .matrix{grid-template-columns:18px 1fr 1fr; gap:5px}
+    .mx-card{padding:4px 6px}
+  }
+  @media print{
+    body *{visibility:hidden}
+    .overlay, .overlay *{visibility:visible}
+    .overlay{position:absolute; background:#fff; padding:0; display:block}
+    .report{box-shadow:none; width:100%}
+    .report-actions, .report-tools{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>工作紀錄表</h1>
+    <span class="badge">離線單機版 · Mac / Windows 通用</span>
+    <span class="spacer"></span>
+    <button id="btnDark" class="ghost" title="切換深色模式">🌙 深色</button>
+  </header>
+  <p class="hint">資料存在這顆硬碟上的 <code>工作紀錄資料.json</code>，會跟著硬碟跨系統移動。本頁完全離線、不連網路。</p>
+
+  <details class="help">
+    <summary>第一次使用請先看這裡</summary>
+    <ol>
+      <li><b>Chrome / Edge</b>：按 <b>「連結工作資料夾」</b>，選定硬碟上的 <code>工作紀錄</code> 這個資料夾。連結後新增/修改會<b>自動存檔</b>，並自動在 <code>備份\</code> 留時間戳備份。</li>
+      <li><b>Safari / Firefox</b>：按 <b>「載入備份」</b>選 <code>工作紀錄資料.json</code>；填寫後按 <b>「下載 JSON」</b>覆蓋舊檔。</li>
+      <li>換電腦（Windows ↔ Mac）時，用同樣方式打開同一個資料夾/JSON，資料就會接續。</li>
+    </ol>
+  </details>
+
+  <!-- 工具列 -->
+  <div class="bar">
+    <button id="btnLink" class="primary" title="連結硬碟上的「工作紀錄」資料夾，啟用自動存檔與自動備份">連結工作資料夾</button>
+    <button id="btnReconnect" class="primary" style="display:none" title="接回上次連結的資料夾"></button>
+    <button id="btnLoad" class="ghost" title="從 JSON 載入（Safari/Firefox 或還原備份）">載入備份</button>
+    <button id="btnDownload" class="ghost" title="下載目前資料為 JSON">下載 JSON</button>
+    <button id="btnBackup" class="ghost" title="下載一份時間戳備份">下載備份</button>
+    <button id="btnProjDownload" class="ghost" title="下載專案資料為 JSON（可單獨備份/分享專案）">下載專案</button>
+    <button id="btnProjLoad" class="ghost" title="從 JSON 載入專案（Safari/Firefox 或還原專案備份）">載入專案</button>
+    <button id="btnImportCsv" class="ghost" title="從 CSV 匯入紀錄（附加到現有資料）">匯入 CSV</button>
+    <button id="btnCsv" class="ghost" title="匯出 CSV，供 Excel / Numbers 開啟">匯出 CSV</button>
+    <button id="btnReport" class="ghost" title="產生可列印的月報">月報</button>
+    <button id="btnPomo" class="ghost" title="開啟番茄鐘（專注倒數）小浮窗">🍅 番茄鐘</button>
+    <span class="spacer"></span>
+    <span id="status" class="status"><span class="dot"></span>尚未連結</span>
+  </div>
+  <input type="file" id="fileInput" accept=".json,application/json" style="display:none">
+  <input type="file" id="projFileInput" accept=".json,application/json" style="display:none">
+  <input type="file" id="csvInput" accept=".csv,text/csv" style="display:none">
+
+  <!-- 視圖切換頁籤 -->
+  <div class="tabs">
+    <div class="seg" id="viewTabs">
+      <button type="button" data-view="work" class="on">📋 工作紀錄</button>
+      <button type="button" data-view="project">📁 專案</button>
+    </div>
+  </div>
+
+  <!-- ===== 視圖：工作紀錄 ===== -->
+  <section id="viewWork">
+
+  <!-- 新增 / 編輯 -->
+  <div class="card">
+    <h2 id="formTitle">新增工作紀錄</h2>
+    <form id="recForm" autocomplete="off">
+      <div class="grid">
+        <div>
+          <label for="f_date">日期</label>
+          <input type="date" id="f_date" required>
+        </div>
+        <div>
+          <label for="f_content">工作項目 / 內容</label>
+          <input type="text" id="f_content" placeholder="例如：完成出貨報表、客戶會議…" required>
+        </div>
+        <div>
+          <label for="f_status">狀態</label>
+          <select id="f_status">
+            <option>進行中</option><option>完成</option><option>暫停</option>
+          </select>
+        </div>
+        <div>
+          <label for="f_project">專案 / 分類</label>
+          <input type="text" id="f_project" list="projlist" placeholder="例如：A 專案 / 行政">
+          <datalist id="projlist"></datalist>
+        </div>
+
+        <div class="full time-row">
+          <div>
+            <label for="f_start">開始時間</label>
+            <input type="time" id="f_start">
+          </div>
+          <div>
+            <label for="f_end">結束時間</label>
+            <input type="time" id="f_end">
+          </div>
+          <div style="flex:0 0 auto">
+            <label>&nbsp;</label>
+            <button type="button" id="btnTimer" class="timer-btn">▶ 開始計時</button>
+          </div>
+          <span id="timerLive" class="timer-live"></span>
+          <div>
+            <label for="f_hours">花費工時（小時）</label>
+            <input type="number" id="f_hours" min="0" step="0.25" placeholder="可由起訖時間自動算">
+          </div>
+        </div>
+
+        <div class="full">
+          <label for="f_notes">備註</label>
+          <textarea id="f_notes" placeholder="額外說明（可留空）"></textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="primary" id="btnSubmit">新增</button>
+        <button type="button" class="ghost" id="btnCopyLast" title="用最後一筆的內容/專案快速建立新紀錄">複製上一筆</button>
+        <button type="button" class="ghost" id="btnCancel" style="display:none">取消編輯</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- 統計 + 圖表 -->
+  <div class="card">
+    <h2>統計</h2>
+    <div class="stats">
+      <div class="stat"><div class="k">今日總工時</div><div class="v" id="s_today">0</div></div>
+      <div class="stat"><div class="k">本月總工時</div><div class="v" id="s_month">0</div></div>
+      <div class="stat"><div class="k">紀錄總筆數</div><div class="v" id="s_count">0</div></div>
+    </div>
+    <div class="charts">
+      <div class="chart-box">
+        <div class="ttl">每日工時（目前篩選範圍）</div>
+        <svg id="chartDays" viewBox="0 0 600 180" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+      <div class="chart-box">
+        <div class="ttl">各專案工時占比（目前篩選範圍）</div>
+        <div class="proj-rows" id="chartProj"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 清單 -->
+  <div class="card">
+    <h2>工作紀錄清單</h2>
+    <div class="filters">
+      <div>
+        <label>日期區間</label>
+        <div class="seg" id="rangeSeg">
+          <button type="button" data-range="all" class="on">全部</button>
+          <button type="button" data-range="today">今天</button>
+          <button type="button" data-range="week">本週</button>
+          <button type="button" data-range="month">本月</button>
+          <button type="button" data-range="custom">自訂</button>
+        </div>
+      </div>
+      <div class="range-custom" id="rangeCustom">
+        <div><label for="rFrom">從</label><input type="date" id="rFrom"></div>
+        <div><label for="rTo">到</label><input type="date" id="rTo"></div>
+      </div>
+      <div>
+        <label for="filterProj">專案</label>
+        <select id="filterProj"><option value="">全部</option></select>
+      </div>
+      <div>
+        <label for="filterStatus">狀態</label>
+        <select id="filterStatus">
+          <option value="">全部</option><option>進行中</option><option>完成</option><option>暫停</option>
+        </select>
+      </div>
+      <div style="flex:1 1 180px">
+        <label for="filterKw">關鍵字搜尋</label>
+        <input type="text" id="filterKw" placeholder="搜尋工作內容 / 備註">
+      </div>
+    </div>
+    <div class="filter-summary" id="filterSummary"></div>
+    <table>
+      <thead>
+        <tr>
+          <th class="hide-sm">時間</th><th>工作項目 / 內容</th><th class="num">工時</th>
+          <th>專案 / 分類</th><th>狀態</th><th class="hide-sm">備註</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty" id="emptyMsg">目前沒有符合條件的紀錄。</div>
+    <div class="pager" id="pager" style="display:none">
+      <button type="button" id="pagePrev">← 上一頁</button>
+      <span class="pages" id="pageInfo">第 1 / 1 頁</span>
+      <button type="button" id="pageNext">下一頁 →</button>
+      <span class="grow"></span>
+      <span class="psize">每頁
+        <select id="pageSize">
+          <option value="20">20</option>
+          <option value="25">25</option>
+          <option value="30">30</option>
+        </select>
+        筆
+      </span>
+    </div>
+  </div>
+
+  </section><!-- /viewWork -->
+
+  <!-- ===== 視圖：專案 ===== -->
+  <section id="viewProject" hidden>
+
+  <!-- 專案：新增 / 編輯 -->
+  <div class="card">
+    <h2 id="projFormTitle">新增專案</h2>
+    <form id="projForm" autocomplete="off">
+      <div class="pgrid">
+        <div class="span2">
+          <label for="p_name">專案名稱</label>
+          <input type="text" id="p_name" list="projlist2" placeholder="例如：H802 糖尿病系統" required>
+          <datalist id="projlist2"></datalist>
+        </div>
+        <div>
+          <label for="p_status">狀態</label>
+          <select id="p_status">
+            <option>未開始</option><option>進行中</option><option>完成</option><option>暫停</option>
+          </select>
+        </div>
+        <div>
+          <label for="p_progress">進度（%）</label>
+          <input type="number" id="p_progress" min="0" max="100" step="5" placeholder="0–100">
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">有子項目時，進度改由完成比例自動計算</div>
+        </div>
+        <div>
+          <label for="p_start">開始日期</label>
+          <input type="date" id="p_start">
+        </div>
+        <div>
+          <label for="p_due">預計完成日</label>
+          <input type="date" id="p_due" required>
+        </div>
+        <div class="span2">
+          <label for="p_owner">負責人</label>
+          <input type="text" id="p_owner" placeholder="可留空">
+        </div>
+        <div class="full">
+          <label for="p_notes">備註</label>
+          <textarea id="p_notes" placeholder="額外說明（可留空）"></textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="primary" id="btnProjSubmit">新增</button>
+        <button type="button" class="ghost" id="btnProjCancel" style="display:none">取消編輯</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- 甘特圖 -->
+  <div class="card">
+    <div class="card-head">
+      <h2>甘特圖（規劃時程）</h2>
+      <button type="button" class="tiny" id="btnGanttDone">顯示完成</button>
+    </div>
+    <div class="gantt-legend">
+      <span class="li"><span class="sw" style="background:#fde68a"></span>進行中</span>
+      <span class="li"><span class="sw" style="background:#bbf7d0"></span>完成</span>
+      <span class="li"><span class="sw" style="background:#e2e8f0"></span>未開始</span>
+      <span class="li"><span class="sw" style="background:#bfdbfe"></span>暫停</span>
+      <span class="li"><span class="sw" style="background:#dc2626"></span>今天 / 逾期</span>
+      <span class="li">深色填滿＝進度</span>
+    </div>
+    <div class="gantt" id="gantt"></div>
+  </div>
+
+  <!-- 專案清單 -->
+  <div class="card">
+    <div class="card-head">
+      <h2>專案清單</h2>
+      <div class="seg" id="projListTabs">
+        <button type="button" data-plist="list" class="on">清單</button>
+        <button type="button" data-plist="quad">四象限</button>
+      </div>
+    </div>
+    <div id="projListWrap">
+      <table>
+        <thead>
+          <tr>
+            <th>專案名稱</th>
+            <th class="hide-sm">開始日</th>
+            <th>預計完成日</th>
+            <th>狀態</th>
+            <th>進度</th>
+            <th class="num">實際工時</th>
+            <th class="hide-sm">最近活動</th>
+            <th class="hide-sm">負責人</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="ptbody"></tbody>
+      </table>
+      <div class="empty" id="pEmptyMsg">還沒有專案，請在上方新增。</div>
+    </div>
+    <div id="quadBoard" hidden></div>
+  </div>
+
+  </section><!-- /viewProject -->
+
+</div>
+
+<!-- 月報彈窗 -->
+<div class="overlay" id="reportOverlay">
+  <div class="report" id="reportBox">
+    <div class="report-tools">
+      <div><label for="reportMonth">選擇月份</label><input type="month" id="reportMonth"></div>
+      <button type="button" id="btnReportRefresh" class="ghost">產生</button>
+    </div>
+    <div id="reportContent"></div>
+    <div class="report-actions">
+      <button type="button" id="btnPrint" class="primary">🖨 列印 / 存 PDF</button>
+      <button type="button" id="btnReportClose" class="ghost">關閉</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function(){
+  // ============ 狀態 ============
+  var LS_DATA = "worklog_records_v2";
+  var LS_PROJ = "worklog_projects_v1";
+  var LS_PREF = "worklog_prefs_v2";
+  var LS_TIMER = "worklog_timer_v1";
+  var BACKUP_KEEP = 200;            // 備份只保留最近這麼多份，更舊的自動刪
+  var records = [];
+  var projects = [];               // 專案紀錄
+  var editingId = null;
+  var editingProjId = null;
+  var dirHandle = null;            // 連結的工作資料夾
+  var supportsFS = (typeof window.showDirectoryPicker === "function");
+  var localApi = /^https?:$/.test(location.protocol) && /^(127\.0\.0\.1|localhost)$/.test(location.hostname);
+  var localApiReady = false;       // Safari 版啟動器提供的本機寫檔服務
+  var dirty = false;               // 有未存檔變更
+  var timer = { running:false, start:0, iv:null };
+  var hoursManual = false;         // 工時是否為手填（手填則起訖時間不覆寫）
+  var prefs = { dark:false, range:"all", from:"", to:"", pageSize:25, tab:"work", projList:"list", ganttShowDone:false, projDoneOpen:false };
+  var page = 1;                    // 清單目前頁碼
+
+  // ============ 小工具 ============
+  function $(id){ return document.getElementById(id); }
+  function pad(n){ return (n<10?"0":"")+n; }
+  function todayStr(){ var d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function nowHM(){ var d=new Date(); return pad(d.getHours())+":"+pad(d.getMinutes()); }
+  function nowStamp(){ var d=new Date(); return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+"_"+pad(d.getHours())+pad(d.getMinutes())+pad(d.getSeconds()); }
+  function uid(){ return Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8); }
+  function num(v){ var n=parseFloat(v); return isNaN(n)?0:n; }
+  function fmtHours(n){ return (Math.round(n*100)/100).toString(); }
+  function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+  function setStatus(text, cls){ var el=$("status"); el.className="status"+(cls?" "+cls:""); el.innerHTML='<span class="dot"></span>'+esc(text); }
+  function markDirty(){ dirty=true; if(!dirHandle) setStatus("⚠ 尚未存到硬碟 · 請按「連結工作資料夾」或「下載 JSON」", "dirty"); }
+  function nowTime(){ var d=new Date(); return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds()); }
+
+  // ============ 偏好（深色模式等，存本機即可） ============
+  function loadPrefs(){ try{ var p=JSON.parse(localStorage.getItem(LS_PREF)); if(p) prefs=Object.assign(prefs,p); }catch(e){} }
+  function savePrefs(){ try{ localStorage.setItem(LS_PREF, JSON.stringify(prefs)); }catch(e){} }
+  function applyDark(){ document.documentElement.classList.toggle("dark", !!prefs.dark); $("btnDark").textContent = prefs.dark ? "☀ 淺色" : "🌙 深色"; }
+
+  // ============ 本機暫存（防呆） ============
+  function saveLocal(){ try{ localStorage.setItem(LS_DATA, JSON.stringify(records)); }catch(e){} }
+  function loadLocal(){ try{ var t=localStorage.getItem(LS_DATA); if(t){ var a=JSON.parse(t); if(Array.isArray(a)) return a; } }catch(e){} return null; }
+  function saveProjLocal(){ try{ localStorage.setItem(LS_PROJ, JSON.stringify(projects)); }catch(e){} }
+  function loadProjLocal(){ try{ var t=localStorage.getItem(LS_PROJ); if(t){ var a=JSON.parse(t); if(Array.isArray(a)) return a; } }catch(e){} return null; }
+
+  // ============ File System Access（資料夾模式） ============
+  async function ensurePerm(handle){
+    var o={mode:"readwrite"};
+    if(await handle.queryPermission(o)==="granted") return true;
+    if(await handle.requestPermission(o)==="granted") return true;
+    return false;
+  }
+  async function writeFileInDir(dir, name, text){
+    var fh = await dir.getFileHandle(name, {create:true});
+    var w = await fh.createWritable(); await w.write(text); await w.close();
+  }
+  // 只保留最近 keep 份備份，更舊的自動刪除（prefix 區分工作紀錄/專案兩種備份）
+  async function pruneBackups(bdir, prefix, keep){
+    try{
+      var re = new RegExp("^"+prefix+"_.*\\.json$");
+      var names = [];
+      for await (var name of bdir.keys()){
+        if(re.test(name)) names.push(name);
+      }
+      if(names.length <= keep) return;
+      names.sort();                                   // 檔名含時間戳：由舊到新
+      var toDelete = names.slice(0, names.length - keep);
+      for(var i=0;i<toDelete.length;i++){ try{ await bdir.removeEntry(toDelete[i]); }catch(e){} }
+    }catch(e){ /* 清理失敗不影響存檔 */ }
+  }
+  // 從資料夾讀一個 JSON 陣列檔（不存在或壞檔＝回空陣列）
+  async function readArrayFromDir(dir, name){
+    try{
+      var fh = await dir.getFileHandle(name, {create:false});
+      var txt = (await (await fh.getFile()).text()).trim();
+      var data = txt ? JSON.parse(txt) : [];
+      return Array.isArray(data) ? data : [];
+    }catch(e){ return []; }
+  }
+
+  async function localApiRead(name){
+    var r = await fetch("/api/read?name="+encodeURIComponent(name), {cache:"no-store"});
+    var j = await r.json();
+    if(!r.ok || !j.ok) throw new Error(j.error || "讀取失敗");
+    return Array.isArray(j.data) ? j.data : [];
+  }
+  async function localApiWrite(name, data, backup){
+    var r = await fetch("/api/write", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({name:name, data:data, backup:!!backup})
+    });
+    var j = await r.json();
+    if(!r.ok || !j.ok) throw new Error(j.error || "寫入失敗");
+  }
+  async function connectLocalApi(silent){
+    try{
+      var fileData = await localApiRead("工作紀錄資料.json");
+      if(fileData.length && records.length && JSON.stringify(fileData)!==JSON.stringify(records)){
+        var useFile = confirm(
+          "資料夾裡的檔案有 "+fileData.length+" 筆，目前畫面有 "+records.length+" 筆，內容不一樣。\n\n"+
+          "按「確定」＝改用『檔案』裡的資料\n按「取消」＝保留『目前畫面』的資料（並覆蓋檔案）");
+        if(useFile) records = fileData;
+      }else if(fileData.length){ records = fileData; }
+      var projData = await localApiRead("專案資料.json");
+      if(projData.length) projects = projData;
+      localApiReady = true;
+      saveLocal(); saveProjLocal();
+      await persist(true);
+      await persistProjects(true);
+      refresh();
+      if(!supportsFS){
+        $("btnLink").disabled=true;
+        $("btnLink").className="ghost";
+        $("btnLink").textContent="Safari 本機存檔已啟用";
+        $("btnLink").title="由 Safari 版啟動器提供本機存檔服務。";
+      }
+      setStatus("本機 JSON 存檔啟用 · 自動存到 JSON", "live");
+    }catch(e){
+      localApiReady = false;
+      setStatus("Safari 本機存檔服務連線失敗，請重新雙擊「Safari 版啟動.command」", "dirty");
+    }
+  }
+  // ---- 記住資料夾：把 handle 存進 IndexedDB，下次自動接回 ----
+  var pendingDir = null;
+  function idbOpen(){
+    return new Promise(function(res,rej){
+      try{ var r=indexedDB.open("worklog_fs",1);
+        r.onupgradeneeded=function(){ r.result.createObjectStore("h"); };
+        r.onsuccess=function(){ res(r.result); }; r.onerror=function(){ rej(r.error); };
+      }catch(e){ rej(e); }
+    });
+  }
+  function idbSet(k,v){ return idbOpen().then(function(db){ return new Promise(function(res,rej){
+    var tx=db.transaction("h","readwrite"); tx.objectStore("h").put(v,k);
+    tx.oncomplete=function(){ db.close(); res(); }; tx.onerror=function(){ rej(tx.error); }; }); }); }
+  function idbGet(k){ return idbOpen().then(function(db){ return new Promise(function(res,rej){
+    var tx=db.transaction("h","readonly"); var rq=tx.objectStore("h").get(k);
+    rq.onsuccess=function(){ db.close(); res(rq.result); }; rq.onerror=function(){ rej(rq.error); }; }); }); }
+
+  // 連結／接回某個資料夾（silent=true 時不另存備份，給自動接回用）
+  async function connectDir(dir, silent){
+    dirHandle = dir;
+    localApiReady = false;
+    var fileData = [];
+    try{
+      var fh = await dir.getFileHandle("工作紀錄資料.json", {create:false});
+      var txt = (await (await fh.getFile()).text()).trim();
+      var data = txt ? JSON.parse(txt) : [];
+      if(Array.isArray(data)) fileData = data;
+    }catch(e){ /* 檔案不存在＝新資料夾 */ }
+    // 安全合併：避免空檔覆蓋掉畫面上的資料
+    if(fileData.length && records.length && JSON.stringify(fileData)!==JSON.stringify(records)){
+      var useFile = confirm(
+        "資料夾裡的檔案有 "+fileData.length+" 筆，目前畫面有 "+records.length+" 筆，內容不一樣。\n\n"+
+        "按「確定」＝改用『檔案』裡的資料\n按「取消」＝保留『目前畫面』的資料（並覆蓋檔案）");
+      if(useFile) records = fileData;
+    }else if(fileData.length){ records = fileData; }
+    // 專案資料：檔案有就採用，否則保留目前畫面（不另跳確認，專案只在本頁編輯）
+    var projData = await readArrayFromDir(dir, "專案資料.json");
+    if(projData.length) projects = projData;
+    await persist(silent);
+    await persistProjects(silent);
+    refresh();
+    setStatus("已連結資料夾：" + dir.name + " · 自動存檔啟用", "live");
+    $("btnReconnect").style.display="none"; pendingDir=null;
+  }
+
+  async function linkFolder(){
+    if(!supportsFS){ alert("此瀏覽器不支援自動存檔，請改用「載入備份 / 下載 JSON」。\n（建議用 Chrome 或 Edge）"); return; }
+    try{
+      var dir = await window.showDirectoryPicker({ mode:"readwrite" });
+      if(!(await ensurePerm(dir))){ alert("沒有取得讀寫權限。"); return; }
+      await connectDir(dir, false);
+      try{ await idbSet("dir", dir); }catch(e){}   // 記住，下次自動接回
+    }catch(e){ if(e && e.name!=="AbortError") alert("連結資料夾失敗："+e.message); }
+  }
+
+  function showReconnect(dir){
+    pendingDir=dir; var b=$("btnReconnect");
+    b.style.display=""; b.textContent="🔗 接回上次的資料夾（"+dir.name+"）";
+    setStatus("上次的資料夾，按一下即可接回", "dirty");
+  }
+  async function reconnectClick(){
+    if(!pendingDir) return;
+    try{
+      var p=await pendingDir.requestPermission({mode:"readwrite"});
+      if(p==="granted"){ await connectDir(pendingDir, false); try{ await idbSet("dir", pendingDir); }catch(e){} }
+      else alert("沒有取得權限，無法接回。");
+    }catch(e){ alert("接回失敗："+e.message); }
+  }
+  // 開頁時嘗試自動接回上次的資料夾
+  async function tryAutoReconnect(){
+    if(!supportsFS) return;
+    var dir; try{ dir = await idbGet("dir"); }catch(e){ return; }
+    if(!dir) return;
+    var perm; try{ perm = await dir.queryPermission({mode:"readwrite"}); }catch(e){ return; }
+    if(perm==="granted"){ try{ await connectDir(dir, true); }catch(e){} }   // 直接自動接回
+    else { showReconnect(dir); }                                           // 需按一下（瀏覽器安全限制）
+  }
+
+  // 主存檔：本機暫存 +（若已連結）寫回資料夾 + 時間戳備份
+  async function persist(silent){
+    saveLocal();
+    if(localApiReady){
+      try{
+        await localApiWrite("工作紀錄資料.json", records, !silent);
+        dirty = false;
+        setStatus(silent ? "本機 JSON 存檔啟用" : ("已自動存檔＋備份 · "+nowTime()), "live");
+      }catch(e){ setStatus("Safari 本機存檔失敗，請按「下載 JSON」", "dirty"); }
+    }else if(dirHandle){
+      try{
+        await writeFileInDir(dirHandle, "工作紀錄資料.json", JSON.stringify(records, null, 2));
+        // 自動備份只在「真的有變更存檔」時寫，連結／接回時(silent)不寫，避免備份檔暴增
+        if(!silent){
+          try{
+            var bdir = await dirHandle.getDirectoryHandle("備份", {create:true});
+            await writeFileInDir(bdir, "工作紀錄_"+nowStamp()+".json", JSON.stringify(records, null, 2));
+            await pruneBackups(bdir, "工作紀錄", BACKUP_KEEP);
+          }catch(be){ /* 備份失敗不影響主存檔 */ }
+        }
+        dirty = false;
+        setStatus(silent ? "已連結資料夾 · 自動存檔啟用" : ("已自動存檔＋備份 · "+nowTime()), "live");
+      }catch(e){ setStatus("自動存檔失敗，請按「下載 JSON」", "dirty"); }
+    }else{
+      markDirty();
+    }
+  }
+
+  // 專案存檔：本機暫存 +（若已連結）寫回 專案資料.json + 時間戳備份
+  async function persistProjects(silent){
+    saveProjLocal();
+    if(localApiReady){
+      try{
+        await localApiWrite("專案資料.json", projects, !silent);
+        dirty = false;
+        if(!silent) setStatus("已自動存檔＋備份 · "+nowTime(), "live");
+      }catch(e){ setStatus("專案自動存檔失敗，請按「下載專案」", "dirty"); }
+    }else if(dirHandle){
+      try{
+        await writeFileInDir(dirHandle, "專案資料.json", JSON.stringify(projects, null, 2));
+        if(!silent){
+          try{
+            var bdir = await dirHandle.getDirectoryHandle("備份", {create:true});
+            await writeFileInDir(bdir, "專案_"+nowStamp()+".json", JSON.stringify(projects, null, 2));
+            await pruneBackups(bdir, "專案", BACKUP_KEEP);
+          }catch(be){ /* 備份失敗不影響主存檔 */ }
+        }
+        dirty = false;
+        if(!silent) setStatus("已自動存檔＋備份 · "+nowTime(), "live");
+      }catch(e){ setStatus("專案自動存檔失敗，請按「下載 JSON」", "dirty"); }
+    }else{
+      markDirty();
+    }
+  }
+
+  // ============ 載入 / 下載 / 備份 ============
+  function downloadBlob(filename, text, mime){
+    var blob=new Blob([text], {type:mime||"application/octet-stream"});
+    var url=URL.createObjectURL(blob), a=document.createElement("a");
+    a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+  function importFromJsonText(txt){
+    txt = String(txt).replace(/^﻿/, "").trim();   // 去掉開頭的 BOM / 空白
+    if(!txt) throw new Error("檔案是空的，沒有可載入的資料");
+    var data;
+    try{ data = JSON.parse(txt); }
+    catch(e){
+      if(txt.charAt(0)!=="[" && txt.charAt(0)!=="{" && (txt.indexOf(",")>=0 || /日期|工作項目/.test(txt)))
+        throw new Error("這看起來像 CSV 檔，請改用「匯入 CSV」按鈕載入");
+      throw new Error("不是有效的 JSON（常見原因：用記事本另存時被加了編碼標記）");
+    }
+    if(!Array.isArray(data)){
+      if(data && Array.isArray(data.records)) data = data.records;  // 容錯：物件包陣列
+      else throw new Error("JSON 內容不是工作紀錄清單（應為一個陣列，例如 [ {...}, {...} ]）");
+    }
+    records=data; page=1; refresh(); saveLocal(); persist();
+  }
+  function importProjectsFromText(txt){
+    txt = String(txt).replace(/^﻿/, "").trim();
+    if(!txt) throw new Error("檔案是空的，沒有可載入的資料");
+    var data;
+    try{ data = JSON.parse(txt); }
+    catch(e){ throw new Error("不是有效的 JSON（常見原因：用記事本另存時被加了編碼標記）"); }
+    if(!Array.isArray(data)){
+      if(data && Array.isArray(data.projects)) data = data.projects;
+      else throw new Error("JSON 內容不是專案清單（應為一個陣列）");
+    }
+    projects=data; refreshProjects(); saveProjLocal(); persistProjects();
+  }
+
+  // ============ CSV 匯出 / 匯入 ============
+  function toCsv(rows){
+    var head=["日期","開始","結束","工作項目/內容","花費工時","專案/分類","狀態","備註"];
+    var lines=[head];
+    rows.forEach(function(r){
+      lines.push([r.date, r.start||"", r.end||"", r.content, (r.hours===""||r.hours==null?"":fmtHours(num(r.hours))), r.project||"", r.status||"", r.notes||""]);
+    });
+    return lines.map(function(cols){
+      return cols.map(function(c){ c=String(c==null?"":c); if(/[",\n\r]/.test(c)){ c='"'+c.replace(/"/g,'""')+'"'; } return c; }).join(",");
+    }).join("\r\n");
+  }
+  function exportCSV(){
+    var rows=sortedFiltered(); // 匯出目前篩選結果
+    downloadBlob("工作紀錄_"+todayStr()+".csv", "﻿"+toCsv(rows), "text/csv;charset=utf-8");
+  }
+  // 簡易 CSV 解析（支援引號、逗號、換行）
+  function parseCsv(text){
+    text = text.replace(/^﻿/, "");
+    var rows=[], row=[], cur="", i=0, inq=false, c;
+    while(i<text.length){
+      c=text[i];
+      if(inq){
+        if(c==='"'){ if(text[i+1]==='"'){ cur+='"'; i+=2; continue; } inq=false; i++; continue; }
+        cur+=c; i++; continue;
+      }
+      if(c==='"'){ inq=true; i++; continue; }
+      if(c===','){ row.push(cur); cur=""; i++; continue; }
+      if(c==='\r'){ i++; continue; }
+      if(c==='\n'){ row.push(cur); rows.push(row); row=[]; cur=""; i++; continue; }
+      cur+=c; i++;
+    }
+    if(cur.length||row.length){ row.push(cur); rows.push(row); }
+    return rows;
+  }
+  function importCsvText(text){
+    var rows=parseCsv(text).filter(function(r){ return r.length && r.join("").trim()!==""; });
+    if(!rows.length) throw new Error("CSV 是空的");
+    var head=rows[0].map(function(h){ return h.trim(); });
+    function idx(names){ for(var k=0;k<names.length;k++){ var j=head.indexOf(names[k]); if(j>=0) return j; } return -1; }
+    var iDate=idx(["日期"]), iStart=idx(["開始","開始時間"]), iEnd=idx(["結束","結束時間"]),
+        iContent=idx(["工作項目/內容","工作項目","內容"]), iHours=idx(["花費工時","工時"]),
+        iProj=idx(["專案/分類","專案","分類"]), iStatus=idx(["狀態"]), iNotes=idx(["備註"]);
+    if(iContent<0 && iDate<0) throw new Error("找不到「日期」或「工作項目/內容」欄位，無法辨識");
+    var added=0;
+    for(var r=1;r<rows.length;r++){
+      var c=rows[r];
+      var rec={
+        id:uid(),
+        date:(iDate>=0?c[iDate]:"")||todayStr(),
+        start:iStart>=0?(c[iStart]||""):"",
+        end:iEnd>=0?(c[iEnd]||""):"",
+        content:(iContent>=0?c[iContent]:"")||"(未命名)",
+        hours:iHours>=0&&c[iHours]!==""&&c[iHours]!=null?num(c[iHours]):"",
+        project:iProj>=0?(c[iProj]||""):"",
+        status:(iStatus>=0?c[iStatus]:"")||"進行中",
+        notes:iNotes>=0?(c[iNotes]||""):""
+      };
+      records.push(rec); added++;
+    }
+    page=1; refresh(); persist();
+    alert("已匯入 "+added+" 筆紀錄（附加到現有資料）。");
+  }
+
+  // ============ 計時器 ============
+  function fmtElapsed(ms){ var s=Math.floor(ms/1000); return pad(Math.floor(s/3600))+":"+pad(Math.floor(s/60)%60)+":"+pad(s%60); }
+  function saveTimer(){ try{ localStorage.setItem(LS_TIMER, JSON.stringify({ start:timer.start, fstart:$("f_start").value })); }catch(e){} }
+  function clearTimerSave(){ try{ localStorage.removeItem(LS_TIMER); }catch(e){} }
+  function startTimer(){
+    timer.running=true; timer.start=Date.now();
+    if(!$("f_start").value) $("f_start").value=nowHM();
+    $("btnTimer").textContent="■ 停止計時"; $("btnTimer").classList.add("on");
+    timer.iv=setInterval(function(){ $("timerLive").textContent=fmtElapsed(Date.now()-timer.start); }, 1000);
+    $("timerLive").textContent="00:00:00";
+    saveTimer();
+  }
+  function stopTimer(){
+    timer.running=false; clearInterval(timer.iv); clearTimerSave();
+    $("btnTimer").textContent="▶ 開始計時"; $("btnTimer").classList.remove("on");
+    $("f_end").value=nowHM(); $("timerLive").textContent="";
+    recalcHours();
+  }
+  // 開頁時若有「進行中」的計時就接回（重整不歸零）
+  function restoreTimer(){
+    var t; try{ t=JSON.parse(localStorage.getItem(LS_TIMER)); }catch(e){}
+    if(!t || !t.start) return;
+    timer.running=true; timer.start=t.start;
+    if(t.fstart) $("f_start").value=t.fstart;
+    $("btnTimer").textContent="■ 停止計時"; $("btnTimer").classList.add("on");
+    timer.iv=setInterval(function(){ $("timerLive").textContent=fmtElapsed(Date.now()-timer.start); }, 1000);
+    $("timerLive").textContent=fmtElapsed(Date.now()-timer.start);
+  }
+  function recalcHours(){
+    if(hoursManual) return;                 // 尊重手填的工時，不覆寫
+    var s=$("f_start").value, e=$("f_end").value;
+    if(s && e){
+      var sm=parseInt(s.slice(0,2))*60+parseInt(s.slice(3)), em=parseInt(e.slice(0,2))*60+parseInt(e.slice(3));
+      var diff=em-sm; if(diff<0) diff+=24*60; // 跨午夜
+      $("f_hours").value=fmtHours(diff/60);
+    }
+  }
+
+  // ============ 表單 ============
+  function fillForm(r){
+    $("f_date").value=r?r.date:todayStr();
+    $("f_start").value=r?(r.start||""):"";
+    $("f_end").value=r?(r.end||""):"";
+    $("f_content").value=r?r.content:"";
+    $("f_hours").value=r?(r.hours===0||r.hours?r.hours:""):"";
+    $("f_project").value=r?(r.project||""):"";
+    $("f_status").value=r?(r.status||"進行中"):"進行中";
+    $("f_notes").value=r?(r.notes||""):"";
+    hoursManual = !!(r && r.hours!=="" && r.hours!=null);   // 載入既有值＝視為手填，編輯起訖時不覆寫
+  }
+  function startEdit(id){
+    var r=records.filter(function(x){return x.id===id;})[0]; if(!r) return;
+    editingId=id; fillForm(r);
+    $("formTitle").textContent="編輯工作紀錄"; $("btnSubmit").textContent="更新"; $("btnCancel").style.display="";
+    window.scrollTo({top:0, behavior:"smooth"});
+  }
+  function cancelEdit(){
+    editingId=null; fillForm(null);
+    $("formTitle").textContent="新增工作紀錄"; $("btnSubmit").textContent="新增"; $("btnCancel").style.display="none";
+  }
+  function copyLast(){
+    if(!records.length){ alert("還沒有任何紀錄可複製。"); return; }
+    var last=records.slice().sort(function(a,b){ return (a.date<b.date?1:-1); })[0];
+    cancelEdit();
+    $("f_date").value=todayStr();
+    $("f_content").value=last.content;
+    $("f_project").value=last.project||"";
+    $("f_status").value="進行中";
+    $("f_notes").value="";
+    $("f_content").focus();
+  }
+  function onSubmit(e){
+    e.preventDefault();
+    var rec={
+      date:$("f_date").value||todayStr(),
+      start:$("f_start").value||"",
+      end:$("f_end").value||"",
+      content:$("f_content").value.trim(),
+      hours:$("f_hours").value===""?"":num($("f_hours").value),
+      project:$("f_project").value.trim(),
+      status:$("f_status").value,
+      notes:$("f_notes").value.trim()
+    };
+    if(!rec.content){ alert("請填寫工作項目 / 內容"); return; }
+    if(editingId){ records=records.map(function(x){ return x.id===editingId?Object.assign({},x,rec):x; }); }
+    else{ rec.id=uid(); records.push(rec); }
+    if(timer.running) stopTimer();
+    cancelEdit(); page=1; refresh(); persist();
+  }
+  function deleteRec(id){
+    var r=records.filter(function(x){return x.id===id;})[0]; if(!r) return;
+    if(!confirm("確定刪除這筆紀錄？\n\n"+r.date+"　"+r.content)) return;
+    records=records.filter(function(x){ return x.id!==id; });
+    if(editingId===id) cancelEdit();
+    refresh(); persist();
+  }
+  // ===== 點狀態 pill → 跳出小選單讓使用者挑狀態（兩張表共用）=====
+  var statusMenuEl=null, statusMenuCleanup=null;
+  function closeStatusMenu(){
+    if(statusMenuCleanup){ statusMenuCleanup(); statusMenuCleanup=null; }
+    if(statusMenuEl && statusMenuEl.parentNode){ statusMenuEl.parentNode.removeChild(statusMenuEl); }
+    statusMenuEl=null;
+  }
+  function openStatusMenu(anchor, opts, current, cb){
+    closeStatusMenu();
+    var m=document.createElement("div"); m.className="smenu";
+    opts.forEach(function(s){
+      var b=document.createElement("button"); b.type="button"; if(s===current) b.className="cur";
+      b.innerHTML='<span class="pill '+esc(s)+'">'+esc(s)+'</span>'+(s===current?'<span class="smk">✓</span>':'');
+      b.addEventListener("click", function(ev){ ev.stopPropagation(); closeStatusMenu(); cb(s); });
+      m.appendChild(b);
+    });
+    document.body.appendChild(m);
+    var r=anchor.getBoundingClientRect(), mw=m.offsetWidth, mh=m.offsetHeight;
+    var left=r.left, top=r.bottom+4;
+    if(left+mw>window.innerWidth-8) left=window.innerWidth-8-mw;
+    if(top+mh>window.innerHeight-8) top=r.top-4-mh;   // 下方放不下就往上翻
+    if(left<8) left=8; if(top<8) top=8;
+    m.style.left=left+"px"; m.style.top=top+"px";
+    statusMenuEl=m;
+    function onDown(ev){ if(!m.contains(ev.target)) closeStatusMenu(); }
+    function onKey(ev){ if(ev.key==="Escape") closeStatusMenu(); }
+    function onScroll(){ closeStatusMenu(); }
+    document.addEventListener("keydown", onKey, true);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll, true);
+    setTimeout(function(){ document.addEventListener("mousedown", onDown, true); }, 0);
+    statusMenuCleanup=function(){
+      document.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll, true);
+      document.removeEventListener("mousedown", onDown, true);
+    };
+  }
+  function pickRecStatus(anchor, id){
+    var r=records.filter(function(x){return x.id===id;})[0]; if(!r) return;
+    openStatusMenu(anchor, ["進行中","完成","暫停"], r.status||"", function(s){
+      r.status=s; if(editingId===id) $("f_status").value=s; refresh(); persist();
+    });
+  }
+
+  // ============ 日期區間 ============
+  function weekRange(){
+    var d=new Date(); var day=(d.getDay()+6)%7; // 週一=0
+    var mon=new Date(d); mon.setDate(d.getDate()-day);
+    var sun=new Date(mon); sun.setDate(mon.getDate()+6);
+    var f=function(x){ return x.getFullYear()+"-"+pad(x.getMonth()+1)+"-"+pad(x.getDate()); };
+    return [f(mon), f(sun)];
+  }
+  function monthRange(){
+    var d=new Date(); var y=d.getFullYear(), m=d.getMonth();
+    var last=new Date(y, m+1, 0).getDate();
+    return [y+"-"+pad(m+1)+"-01", y+"-"+pad(m+1)+"-"+pad(last)];
+  }
+  function currentRange(){
+    if(prefs.range==="today") return [todayStr(), todayStr()];
+    if(prefs.range==="week") return weekRange();
+    if(prefs.range==="month") return monthRange();
+    if(prefs.range==="custom") return [prefs.from||"0000-01-01", prefs.to||"9999-12-31"];
+    return ["0000-01-01","9999-12-31"];
+  }
+
+  // ============ 篩選 / 排序 ============
+  function sortedFiltered(){
+    var rg=currentRange(), lo=rg[0], hi=rg[1];
+    var proj=$("filterProj").value, st=$("filterStatus").value, kw=$("filterKw").value.trim().toLowerCase();
+    var out=records.filter(function(r){
+      if((r.date||"")<lo || (r.date||"")>hi) return false;
+      if(proj && (r.project||"")!==proj) return false;
+      if(st && (r.status||"")!==st) return false;
+      if(kw){ if((((r.content||"")+" "+(r.notes||"")).toLowerCase()).indexOf(kw)<0) return false; }
+      return true;
+    });
+    out.sort(function(a,b){
+      if(a.date!==b.date) return a.date<b.date?1:-1;       // 日期新→舊
+      return (a.start||"")<(b.start||"")?1:-1;             // 同日內晚→早
+    });
+    return out;
+  }
+
+  // ============ 渲染：清單（依日期分組） ============
+  function pageSize(){ var n=parseInt(prefs.pageSize,10); return (n===20||n===25||n===30)?n:25; }
+  function renderTable(){
+    var rows=sortedFiltered();
+    var tb=$("tbody"); tb.innerHTML="";
+    $("emptyMsg").style.display=rows.length?"none":"block";
+
+    // 篩選摘要（永遠針對「全部符合」的結果，不只本頁）
+    var total=rows.reduce(function(s,r){ return s+num(r.hours); }, 0);
+    $("filterSummary").innerHTML="符合 <b>"+rows.length+"</b> 筆，合計工時 <b>"+fmtHours(total)+"</b> 小時";
+
+    // 分頁切片
+    var ps=pageSize(), totalPages=Math.max(1, Math.ceil(rows.length/ps));
+    if(page>totalPages) page=totalPages;
+    if(page<1) page=1;
+    var pageRows=rows.slice((page-1)*ps, page*ps);
+    renderPager(rows.length, totalPages);
+
+    var curDate=null;
+    pageRows.forEach(function(r){
+      if(r.date!==curDate){
+        curDate=r.date;
+        // 當日小計仍以整天（全部符合）為準，即使該日被分到不同頁
+        var daySum=rows.filter(function(x){return x.date===curDate;}).reduce(function(s,x){return s+num(x.hours);},0);
+        var gtr=document.createElement("tr"); gtr.className="group";
+        gtr.innerHTML='<td colspan="7">'+esc(curDate)+'　<span class="gsum">當日小計 '+fmtHours(daySum)+' 小時</span></td>';
+        tb.appendChild(gtr);
+      }
+      var time=(r.start||"")+(r.end?("–"+r.end):"");
+      var tr=document.createElement("tr");
+      tr.innerHTML=
+        '<td class="time hide-sm">'+esc(time)+'</td>'+
+        '<td>'+esc(r.content)+'</td>'+
+        '<td class="num">'+(r.hours===""||r.hours==null?"—":esc(fmtHours(num(r.hours))))+'</td>'+
+        '<td>'+esc(r.project||"")+'</td>'+
+        '<td><span class="pill pclick '+esc(r.status||"")+'" data-rstatus="'+esc(r.id)+'" title="點擊選擇狀態">'+esc(r.status||"")+'</span></td>'+
+        '<td class="hide-sm">'+esc(r.notes||"")+'</td>'+
+        '<td><div class="rowact">'+
+          '<button class="tiny" data-edit="'+esc(r.id)+'">編輯</button>'+
+          '<button class="tiny danger" data-del="'+esc(r.id)+'">刪除</button>'+
+        '</div></td>';
+      tb.appendChild(tr);
+    });
+  }
+  function renderPager(count, totalPages){
+    var pg=$("pager");
+    if(!count){ pg.style.display="none"; return; }
+    pg.style.display="flex";
+    $("pageInfo").textContent="第 "+page+" / "+totalPages+" 頁";
+    $("pagePrev").disabled = page<=1;
+    $("pageNext").disabled = page>=totalPages;
+  }
+  function gotoPage(p){ page=p; renderTable(); $("filterSummary").scrollIntoView({behavior:"smooth", block:"start"}); }
+
+  // ============ 渲染：統計 + 圖表 ============
+  function renderStats(){
+    var today=todayStr(), ym=today.slice(0,7), tSum=0, mSum=0;
+    records.forEach(function(r){ var h=num(r.hours); if(r.date===today)tSum+=h; if((r.date||"").slice(0,7)===ym)mSum+=h; });
+    $("s_today").textContent=fmtHours(tSum); $("s_month").textContent=fmtHours(mSum); $("s_count").textContent=records.length;
+  }
+  function renderCharts(){
+    var rows=sortedFiltered();
+    // ===== 每日工時：今天(單日)→長條；多日→折線（有界範圍逐日補 0，呈現真實趨勢） =====
+    var byDay={}; rows.forEach(function(r){ byDay[r.date]=(byDay[r.date]||0)+num(r.hours); });
+    var rg=currentRange(), lo=rg[0], hi=rg[1];
+    var bounded=(lo!=="0000-01-01" && hi!=="9999-12-31");
+    var d0=parseYmd(lo), d1=parseYmd(hi), days;
+    if(bounded && d0 && d1 && d1>=d0 && (d1-d0)/86400000<=400){
+      days=[];
+      for(var dd=new Date(d0); dd<=d1; dd.setDate(dd.getDate()+1)){
+        days.push(dd.getFullYear()+"-"+pad(dd.getMonth()+1)+"-"+pad(dd.getDate()));
+      }
+    } else {
+      days=Object.keys(byDay).sort();                 // 全部/無界：只放有記錄的日子
+    }
+    var CAP=62; if(days.length>CAP) days=days.slice(days.length-CAP);
+
+    var W=600,H=180,PAD=24;
+    var max=1; days.forEach(function(d){ if((byDay[d]||0)>max) max=byDay[d]||0; });
+    var svg='';
+    if(!rows.length || !days.length){
+      svg='<text x="300" y="90" font-size="12" fill="var(--muted)" text-anchor="middle">此範圍沒有資料</text>';
+    } else if(days.length===1){               // 今天 / 單日 → 長條
+      var d=days[0], v=byDay[d]||0, h=(v/max)*(H-PAD*2), w=(W-PAD*2)*0.3, x=W/2-w/2, y=H-PAD-h;
+      svg+='<line x1="'+PAD+'" y1="'+(H-PAD)+'" x2="'+(W-PAD)+'" y2="'+(H-PAD)+'" stroke="var(--line)"/>';
+      svg+='<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="3" fill="var(--brand)"><title>'+esc(d)+'：'+fmtHours(v)+' 小時</title></rect>';
+      svg+='<text x="'+(W/2)+'" y="'+(y-6).toFixed(1)+'" font-size="11" fill="var(--brand-d)" text-anchor="middle">'+fmtHours(v)+' 小時</text>';
+      svg+='<text x="'+(W/2)+'" y="'+(H-PAD+13)+'" font-size="10" fill="var(--muted)" text-anchor="middle">'+esc(d)+'</text>';
+    } else {                                  // 多日 → 折線
+      var n=days.length, step=(W-PAD*2)/(n-1);
+      var X=function(i){ return PAD+i*step; }, Y=function(v){ return H-PAD-(v/max)*(H-PAD*2); };
+      var pts=days.map(function(d,i){ return X(i).toFixed(1)+","+Y(byDay[d]||0).toFixed(1); });
+      svg+='<line x1="'+PAD+'" y1="'+(H-PAD)+'" x2="'+(W-PAD)+'" y2="'+(H-PAD)+'" stroke="var(--line)"/>';
+      svg+='<polygon points="'+PAD+','+(H-PAD)+' '+pts.join(' ')+' '+(W-PAD)+','+(H-PAD)+'" fill="var(--brand)" fill-opacity="0.10"/>';
+      svg+='<polyline points="'+pts.join(' ')+'" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+      var rr=n>31?0:(n>14?2:3);
+      days.forEach(function(d,i){
+        var cx=X(i).toFixed(1), cy=Y(byDay[d]||0).toFixed(1);
+        if(rr>0) svg+='<circle cx="'+cx+'" cy="'+cy+'" r="'+rr+'" fill="var(--brand)"/>';
+        svg+='<circle cx="'+cx+'" cy="'+cy+'" r="7" fill="transparent"><title>'+esc(d)+'：'+fmtHours(byDay[d]||0)+' 小時</title></circle>';
+        if(n<=10 || i===0 || i===n-1 || i%Math.ceil(n/8)===0){
+          svg+='<text x="'+cx+'" y="'+(H-PAD+12)+'" font-size="9" fill="var(--muted)" text-anchor="middle">'+esc(d.slice(5))+'</text>';
+        }
+      });
+    }
+    $("chartDays").innerHTML=svg;
+
+    // 各專案占比（水平長條）
+    var byProj={}; rows.forEach(function(r){ var k=r.project||"（未分類）"; byProj[k]=(byProj[k]||0)+num(r.hours); });
+    var keys=Object.keys(byProj).sort(function(a,b){return byProj[b]-byProj[a];});
+    var pmax=1; keys.forEach(function(k){ if(byProj[k]>pmax)pmax=byProj[k]; });
+    var html="";
+    if(!keys.length) html='<div style="color:var(--muted);font-size:13px">此範圍沒有資料</div>';
+    keys.forEach(function(k){
+      var pct=(byProj[k]/pmax)*100;
+      html+='<div class="row"><div class="name" title="'+esc(k)+'">'+esc(k)+'</div>'+
+            '<div class="track"><div class="fill" style="width:'+pct.toFixed(0)+'%"></div></div>'+
+            '<div class="val">'+fmtHours(byProj[k])+' 小時</div></div>';
+    });
+    $("chartProj").innerHTML=html;
+  }
+
+  function renderProjectOptions(){
+    var seen={}, list=[];
+    records.forEach(function(r){ if(r.project && !seen[r.project]){ seen[r.project]=1; list.push(r.project); } });
+    list.sort();
+    var dl=$("projlist"); dl.innerHTML="";
+    var fp=$("filterProj"); var cur=fp.value; fp.innerHTML='<option value="">全部</option>';
+    list.forEach(function(p){
+      var o1=document.createElement("option"); o1.value=p; dl.appendChild(o1);
+      var o2=document.createElement("option"); o2.value=p; o2.textContent=p; fp.appendChild(o2);
+    });
+    if(list.indexOf(cur)>=0) fp.value=cur;
+  }
+
+  function refreshWork(){ renderProjectOptions(); renderStats(); renderCharts(); renderTable(); }
+  function refresh(){ refreshWork(); refreshProjects(); }
+
+  // ============ 專案 ============
+  // 由工作紀錄比對「專案/分類」算出實際工時與最近活動
+  function projStats(name){
+    var sum=0, last="";
+    records.forEach(function(r){ if((r.project||"")===name){ sum+=num(r.hours); if((r.date||"")>last) last=r.date||""; } });
+    return { hours:sum, last:last };
+  }
+  function isOverdue(p){ return p.due && p.status!=="完成" && p.due < todayStr(); }
+  function projStatusClass(p){ return isOverdue(p) ? "逾期" : (p.status||"未開始"); }
+  function projStatusLabel(p){ return isOverdue(p) ? "逾期" : (p.status||"未開始"); }
+  // 點狀態 pill → 跳出選單挑狀態（逾期是衍生顯示，選的是實際 status）
+  function pickProjStatus(anchor, pid){
+    var p=findProj(pid); if(!p) return;
+    openStatusMenu(anchor, ["未開始","進行中","完成","暫停"], p.status||"未開始", function(s){
+      p.status=s; persistProjects(); refreshProjects();
+    });
+  }
+  function projItems(p){ return Array.isArray(p.items) ? p.items : []; }
+  function itemCounts(p){ var it=projItems(p), d=0; it.forEach(function(x){ if(x.done) d++; }); return { done:d, total:it.length }; }
+  // 有子項目就自動算進度（完成數/總數），否則用手動填的 progress
+  function projProgress(p){ var c=itemCounts(p); if(c.total) return Math.round(c.done/c.total*100); return (p.progress===""||p.progress==null) ? 0 : num(p.progress); }
+  var expanded = {};               // 專案展開狀態（本次工作階段保留）
+  var itemDrafts = {};             // 新子項目正在輸入的標題（防 IME 組字／失焦丟字）
+
+  // 專案名 datalist：現有工作紀錄專案 ∪ 現有專案名（方便對齊關聯）
+  function renderProjNameOptions(){
+    var seen={}, list=[];
+    records.forEach(function(r){ if(r.project && !seen[r.project]){ seen[r.project]=1; list.push(r.project); } });
+    projects.forEach(function(p){ if(p.name && !seen[p.name]){ seen[p.name]=1; list.push(p.name); } });
+    list.sort();
+    var dl=$("projlist2"); dl.innerHTML="";
+    list.forEach(function(n){ var o=document.createElement("option"); o.value=n; dl.appendChild(o); });
+  }
+
+  // ---- 專案表單 ----
+  function fillProjForm(p){
+    $("p_name").value = p?p.name:"";
+    $("p_status").value = p?(p.status||"未開始"):"未開始";
+    $("p_progress").value = p?(p.progress===0||p.progress?p.progress:""):"";
+    // 新增時開始日／預計完成日預設帶今天（編輯時沿用原值）
+    $("p_start").value = p?(p.start||""):todayStr();
+    $("p_due").value = p?(p.due||""):todayStr();
+    $("p_owner").value = p?(p.owner||""):"";
+    $("p_notes").value = p?(p.notes||""):"";
+  }
+  function startEditProj(id){
+    var p=projects.filter(function(x){return x.id===id;})[0]; if(!p) return;
+    editingProjId=id; fillProjForm(p);
+    $("projFormTitle").textContent="編輯專案"; $("btnProjSubmit").textContent="更新"; $("btnProjCancel").style.display="";
+    $("viewProject").scrollIntoView({behavior:"smooth", block:"start"});
+  }
+  function cancelEditProj(){
+    editingProjId=null; fillProjForm(null);
+    $("projFormTitle").textContent="新增專案"; $("btnProjSubmit").textContent="新增"; $("btnProjCancel").style.display="none";
+  }
+  function onSubmitProj(e){
+    e.preventDefault();
+    var p={
+      name:$("p_name").value.trim(),
+      status:$("p_status").value,
+      progress:$("p_progress").value===""?"":Math.min(100,Math.max(0,num($("p_progress").value))),
+      start:$("p_start").value||"",
+      due:$("p_due").value||"",
+      owner:$("p_owner").value.trim(),
+      notes:$("p_notes").value.trim()
+    };
+    if(!p.name){ alert("請填寫專案名稱"); return; }
+    if(!p.due){ alert("請填寫預計完成日"); return; }
+    if(p.start && p.due && p.due < p.start){ alert("預計完成日不能早於開始日期"); return; }
+    if(editingProjId){ projects=projects.map(function(x){ return x.id===editingProjId?Object.assign({},x,p):x; }); }
+    else{ p.id=uid(); p.items=[]; projects.push(p); }
+    cancelEditProj(); refreshProjects(); persistProjects();
+  }
+  function deleteProj(id){
+    var p=projects.filter(function(x){return x.id===id;})[0]; if(!p) return;
+    if(!confirm("確定刪除這個專案？\n\n"+p.name)) return;
+    projects=projects.filter(function(x){ return x.id!==id; });
+    if(editingProjId===id) cancelEditProj();
+    refreshProjects(); persistProjects();
+  }
+
+  // ---- 專案清單（可展開子項目） ----
+  // 排序優先序：逾期 > 進行中 > 未開始 > 暫停 >（完成另放一區）；同組內按開始日期由早到晚
+  function projSortRank(p){
+    if(isOverdue(p)) return 0;
+    var s=p.status||"未開始";
+    return s==="進行中"?1:(s==="未開始"?2:(s==="暫停"?3:(s==="完成"?9:4)));
+  }
+  function projSortCmp(a,b){
+    var ra=projSortRank(a), rb=projSortRank(b);
+    if(ra!==rb) return ra-rb;
+    var sa=a.start||a.due||"9999-99-99", sb=b.start||b.due||"9999-99-99";
+    return sa<sb?-1:(sa>sb?1:0);
+  }
+  function appendProjRow(tb, p){
+    var st=projStats(p.name), over=isOverdue(p), prog=projProgress(p);
+    var c=itemCounts(p), open=!!expanded[p.id];
+    var caret='<span class="pcaret" data-act="expand" data-pid="'+esc(p.id)+'">'+(open?"▾":"▸")+'</span>';
+    var badge=c.total?'<span class="pcount">('+c.done+'/'+c.total+')</span>':'';
+    var tr=document.createElement("tr");
+    tr.innerHTML=
+      '<td>'+caret+esc(p.name)+badge+'</td>'+
+      '<td class="date hide-sm">'+esc(p.start||"—")+'</td>'+
+      '<td class="date"'+(over?' style="color:var(--danger);font-weight:600"':'')+'>'+esc(p.due||"—")+'</td>'+
+      '<td><span class="pill pclick '+esc(projStatusClass(p))+'" data-act="pstatus" data-pid="'+esc(p.id)+'" title="點擊選擇狀態">'+esc(projStatusLabel(p))+'</span></td>'+
+      '<td><div class="minibar"><div class="track"><div class="fill" style="width:'+prog+'%"></div></div><span class="pct">'+prog+'%</span></div></td>'+
+      '<td class="num">'+(st.hours?esc(fmtHours(st.hours)):"—")+'</td>'+
+      '<td class="date hide-sm">'+esc(st.last||"—")+'</td>'+
+      '<td class="hide-sm">'+esc(p.owner||"")+'</td>'+
+      '<td><div class="rowact">'+
+        '<button class="tiny" data-pedit="'+esc(p.id)+'">編輯</button>'+
+        '<button class="tiny danger" data-pdel="'+esc(p.id)+'">刪除</button>'+
+      '</div></td>';
+    tb.appendChild(tr);
+    if(open){
+      var sr=document.createElement("tr"); sr.className="subrow";
+      sr.innerHTML='<td colspan="9">'+renderChecklist(p)+'</td>';
+      tb.appendChild(sr);
+    }
+  }
+  function renderProjTable(){
+    var tb=$("ptbody"); tb.innerHTML="";
+    $("pEmptyMsg").style.display=projects.length?"none":"block";
+    var active=projects.filter(function(p){ return (p.status||"")!=="完成"; }).sort(projSortCmp);
+    var done=projects.filter(function(p){ return (p.status||"")==="完成"; }).sort(projSortCmp);
+    active.forEach(function(p){ appendProjRow(tb, p); });
+    if(done.length){
+      var open=!!prefs.projDoneOpen;
+      var sep=document.createElement("tr"); sep.className="psection";
+      sep.innerHTML='<td colspan="9"><span class="psec-toggle" data-act="pdone">'+(open?"▾":"▸")+' 已完成（'+done.length+'）</span></td>';
+      tb.appendChild(sep);
+      if(open) done.forEach(function(p){ appendProjRow(tb, p); });
+    }
+  }
+  // 四象限：值 ""/1/2/3/4。清單只顯示唯讀小色點（已分類才顯示）；分類在「四象限」矩陣上用拖曳
+  function quadLabel(k){ return k==="1"?"重要·緊急":k==="2"?"重要·不緊急":k==="3"?"緊急·不重要":k==="4"?"不重要·不緊急":"未分類"; }
+  function quadDot(k){ return k?'<span class="qdot q'+k+'" title="'+esc(quadLabel(k))+'"></span>':''; }
+  function renderChecklist(p){
+    var pid=esc(p.id), h='<div class="checklist">';
+    projItems(p).forEach(function(it){
+      var iid=esc(it.id), over=!it.done && it.due && it.due<todayStr();
+      h+='<div class="ci'+(it.done?" done":"")+'">'+
+        '<input type="checkbox" data-act="toggle" data-pid="'+pid+'" data-iid="'+iid+'"'+(it.done?" checked":"")+'>'+
+        quadDot(it.quad)+
+        '<input type="text" class="ci-title" data-act="title" data-pid="'+pid+'" data-iid="'+iid+'" value="'+esc(it.title||"")+'">'+
+        '<input type="date" class="ci-date" data-act="date" data-pid="'+pid+'" data-iid="'+iid+'" value="'+esc(it.due||"")+'"'+(over?' style="color:var(--danger);font-weight:600"':'')+'>'+
+        '<button type="button" class="tiny" data-act="iwork" data-pid="'+pid+'" data-iid="'+iid+'" title="把這個子項目記到工作清單（只填內容，不填專案）">記工作</button>'+
+        '<button type="button" class="tiny danger" data-act="idel" data-pid="'+pid+'" data-iid="'+iid+'" title="刪除子項目">×</button>'+
+      '</div>';
+    });
+    h+='<div class="ci ci-add">'+
+        '<span class="ci-plus">＋</span>'+
+        '<input type="text" class="ci-title" data-newtitle placeholder="新增子項目／目標…">'+
+        '<input type="date" class="ci-date" data-newdate value="'+todayStr()+'" title="目標日期（選填，可清空）">'+
+        '<button type="button" class="tiny primary" data-act="iadd" data-pid="'+pid+'">新增</button>'+
+      '</div>';
+    return h+'</div>';
+  }
+  // 子項目資料操作
+  function findProj(pid){ return projects.filter(function(x){return x.id===pid;})[0]; }
+  function itemGet(pid, iid){ var p=findProj(pid); if(!p) return {}; return projItems(p).filter(function(x){return x.id===iid;})[0]||{}; }
+  function itemAdd(pid, title, due){
+    var p=findProj(pid); if(!p) return;
+    if(!Array.isArray(p.items)) p.items=[];
+    p.items.push({ id:uid(), title:title, done:false, due:due||"", quad:"" });
+    expanded[pid]=true; persistProjects(); refreshProjects();
+  }
+  // 從「新增子項目」那一列讀標題＋日期並新增（click 與 Enter 共用；含 IME 防丟字）
+  function addItemFromRow(box){
+    if(!box) return;
+    var btn=box.querySelector('[data-act="iadd"]'); if(!btn) return;
+    var pid=btn.getAttribute("data-pid");
+    var ti=box.querySelector("[data-newtitle]"), da=box.querySelector("[data-newdate]");
+    var title=((ti&&ti.value||"").trim()) || ((itemDrafts[pid]||"").trim());
+    if(!title){ if(ti) ti.focus(); return; }
+    delete itemDrafts[pid];
+    itemAdd(pid, title, da&&da.value||"");
+  }
+  function itemDelete(pid, iid){
+    var p=findProj(pid); if(!p) return;
+    p.items=projItems(p).filter(function(x){return x.id!==iid;});
+    persistProjects(); refreshProjects();
+  }
+  function itemSet(pid, iid, patch){
+    var p=findProj(pid); if(!p) return;
+    var it=projItems(p).filter(function(x){return x.id===iid;})[0]; if(!it) return;
+    Object.assign(it, patch);
+    persistProjects(); refreshProjects();
+  }
+  // 把子項目記成一筆工作紀錄：只填「工作項目/內容」，專案/分類留空
+  function logItemToWork(pid, iid, btn){
+    var it=itemGet(pid, iid); if(!it || !(it.title||"").trim()) return;
+    records.push({ id:uid(), date:todayStr(), start:"", end:"", content:it.title.trim(),
+      hours:"", project:"", status:"進行中", notes:"" });
+    page=1; refreshWork(); persist();   // 只重畫工作清單，保留專案展開狀態與這顆按鈕
+    if(btn){ var old=btn.textContent; btn.textContent="✓ 已加入"; btn.disabled=true;
+      setTimeout(function(){ try{ btn.textContent=old; btn.disabled=false; }catch(e){} }, 1400); }
+  }
+
+  // ---- 甘特圖（div/CSS） ----
+  function parseYmd(s){ if(!s) return null; var p=String(s).split("-"); if(p.length<3) return null; var d=new Date(+p[0],+p[1]-1,+p[2]); return isNaN(d.getTime())?null:d; }
+  function updateGanttDoneBtn(n){
+    var b=$("btnGanttDone"); if(!b) return;
+    b.textContent = prefs.ganttShowDone ? "隱藏完成" : ("顯示完成"+(n?" ("+n+")":""));
+    b.classList.toggle("primary", !!prefs.ganttShowDone);
+  }
+  function renderGantt(){
+    var box=$("gantt");
+    var withDue=projects.filter(function(p){ return p.due; });
+    var doneCount=withDue.filter(function(p){ return (p.status||"")==="完成"; }).length;
+    updateGanttDoneBtn(doneCount);
+    var list=withDue.filter(function(p){ return prefs.ganttShowDone || (p.status||"")!=="完成"; })
+                    .sort(function(a,b){ return (a.start||a.due)<(b.start||b.due)?-1:1; });
+    if(!list.length){
+      box.innerHTML='<div class="empty">'+(doneCount&&!prefs.ganttShowDone
+        ? '專案皆已完成並隱藏，點右上「顯示完成」可顯示。'
+        : '尚無可顯示的專案（需要有預計完成日）。')+'</div>';
+      return;
+    }
+    var minD=null, maxD=null;
+    list.forEach(function(p){
+      var s=parseYmd(p.start)||parseYmd(p.due), d=parseYmd(p.due);
+      if(s && (!minD || s<minD)) minD=s;
+      if(d && (!maxD || d>maxD)) maxD=d;
+      projItems(p).forEach(function(it){ var md=parseYmd(it.due); if(md){ if(!minD||md<minD) minD=md; if(!maxD||md>maxD) maxD=md; } });
+    });
+    if(!minD||!maxD){ box.innerHTML='<div class="empty">日期資料不足。</div>'; return; }
+    // 向外對齊到整月，讓月份格線好看
+    var lo=new Date(minD.getFullYear(), minD.getMonth(), 1);
+    var hi=new Date(maxD.getFullYear(), maxD.getMonth()+1, 0);
+    var span=(hi-lo)||1;
+    function pct(d){ return ((d-lo)/span)*100; }
+    var t=new Date(); var today=new Date(t.getFullYear(),t.getMonth(),t.getDate());
+    var todayPct=(today>=lo && today<=hi)?pct(today):-1;
+
+    // 月份標記列
+    var months='', m=new Date(lo), first=true;
+    while(m<=hi){
+      var showYear=first||m.getMonth()===0;
+      var label=(showYear?m.getFullYear()+" ":"")+(m.getMonth()+1)+"月";
+      months+='<div class="g-month" style="left:'+pct(m).toFixed(2)+'%">'+label+'</div>';
+      first=false; m=new Date(m.getFullYear(), m.getMonth()+1, 1);
+    }
+    var html='<div class="g-row g-head"><div class="g-name"></div><div class="g-months">'+months+'</div></div>';
+
+    list.forEach(function(p){
+      var s=parseYmd(p.start)||parseYmd(p.due), d=parseYmd(p.due);
+      var left=pct(s), w=Math.max(pct(d)-left, 0.8), prog=projProgress(p), st=projStats(p.name);
+      var barCls=esc(p.status||"未開始")+(isOverdue(p)?" 逾期":"");
+      var tip=p.name+"  ("+(p.start||"?")+" → "+(p.due||"?")+")  "+projStatusLabel(p)+" "+prog+"%"+(st.hours?"  實際 "+fmtHours(st.hours)+"h":"");
+      var todayLine=todayPct>=0?'<div class="g-today" style="left:'+todayPct.toFixed(2)+'%"></div>':'';
+      // 有目標日的子項目＝里程碑標記
+      var ms='';
+      projItems(p).forEach(function(it){
+        var md=parseYmd(it.due); if(!md) return;
+        var x=pct(md); if(x<0||x>100) return;
+        var done=!!it.done, over=!done && it.due<todayStr();
+        ms+='<span class="g-ms'+(done?" done":"")+(over?" over":"")+'" style="left:'+x.toFixed(2)+'%" title="'+esc((it.title||"子項目")+" · "+it.due+(done?" ✓":""))+'">'+(done?"◆":"◇")+'</span>';
+      });
+      html+='<div class="g-row">'+
+        '<div class="g-name" title="'+esc(p.name)+'">'+esc(p.name)+'</div>'+
+        '<div class="g-track">'+todayLine+
+          '<div class="g-bar '+barCls+'" style="left:'+left.toFixed(2)+'%;width:'+w.toFixed(2)+'%" title="'+esc(tip)+'">'+
+            '<div class="g-fill" style="width:'+prog+'%"></div>'+
+          '</div>'+ms+
+        '</div>'+
+      '</div>';
+    });
+    box.innerHTML=html;
+  }
+
+  function refreshProjects(){ renderProjNameOptions(); renderProjTable(); renderGantt(); renderQuadBoard(); }
+
+  // ---- 四象限矩陣（彙整所有專案的子項目，卡片可拖曳放到象限） ----
+  function renderQuadBoard(){
+    var box=$("quadBoard"); if(!box) return;
+    var all=[], hasDone=false;
+    // 已完成的子項目不顯示在四象限
+    projects.forEach(function(p){ projItems(p).forEach(function(it){ if(it.done){ hasDone=true; return; } all.push({ p:p, it:it }); }); });
+    if(!all.length){ box.innerHTML='<div class="empty">'+(hasDone
+      ? '未完成的子項目都清空了（已完成的不顯示在四象限）。'
+      : '目前沒有子項目可分類。先展開專案、新增子項目。')+'</div>'; return; }
+    function cardHtml(rec){
+      var p=rec.p, it=rec.it;
+      return '<div class="mx-card q'+(it.quad||"0")+(it.done?" done":"")+'" draggable="true" data-pid="'+esc(p.id)+'" data-iid="'+esc(it.id)+'" title="'+esc((it.title||"(未命名)")+" — "+(p.name||""))+'">'+
+        '<span class="mx-t">'+esc(it.title||"(未命名)")+'</span>'+
+        '<span class="mx-p">'+esc(p.name||"")+'</span>'+
+      '</div>';
+    }
+    function cell(q){
+      var list=all.filter(function(r){ return (r.it.quad||"")===q; });
+      var cards=list.length?list.map(cardHtml).join(""):'<div class="mx-empty">把卡片拖到這裡</div>';
+      return '<div class="mx-cell q'+q+'" data-quad="'+q+'">'+
+        '<div class="mx-h"><span class="qdot q'+q+'"></span>'+quadLabel(q)+' <span class="qn">'+list.length+'</span></div>'+
+        '<div class="mx-list">'+cards+'</div></div>';
+    }
+    var matrix='<div class="matrix">'+
+      '<div class="mx-corner"></div>'+
+      '<div class="mx-axis mx-top">緊急 →</div>'+
+      '<div class="mx-axis mx-top">不緊急</div>'+
+      '<div class="mx-axis mx-left">重要 ↑</div>'+ cell("1") + cell("2") +
+      '<div class="mx-axis mx-left">不重要</div>'+ cell("3") + cell("4") +
+    '</div>';
+    var unsorted=all.filter(function(r){ return !(r.it.quad); });
+    var tray='<div class="mx-tray" data-quad="">'+
+      '<div class="mx-h">待分類（把卡片拖進上面的格子）<span class="qn">'+unsorted.length+'</span></div>'+
+      (unsorted.length?unsorted.map(cardHtml).join(""):'<div class="mx-empty">（沒有未分類項目）</div>')+
+    '</div>';
+    box.innerHTML=matrix+tray;
+  }
+
+  // ---- 視圖切換 ----
+  function setView(view){
+    if(view!=="project") view="work";
+    prefs.tab=view; savePrefs();
+    $("viewWork").hidden = (view!=="work");
+    $("viewProject").hidden = (view!=="project");
+    Array.prototype.forEach.call($("viewTabs").children, function(b){ b.classList.toggle("on", b.getAttribute("data-view")===view); });
+  }
+  // 專案清單：清單 ↔ 四象限板
+  function setProjList(mode){
+    if(mode!=="quad") mode="list";
+    prefs.projList=mode; savePrefs();
+    $("projListWrap").hidden = (mode!=="list");
+    $("quadBoard").hidden = (mode!=="quad");
+    Array.prototype.forEach.call($("projListTabs").children, function(b){ b.classList.toggle("on", b.getAttribute("data-plist")===mode); });
+  }
+
+  // ============ 月報 ============
+  function openReport(){
+    if(!$("reportMonth").value) $("reportMonth").value=todayStr().slice(0,7);
+    buildReport(); $("reportOverlay").classList.add("show");
+  }
+  function buildReport(){
+    var ym=$("reportMonth").value || todayStr().slice(0,7);
+    var rows=records.filter(function(r){ return (r.date||"").slice(0,7)===ym; })
+                    .sort(function(a,b){ return a.date<b.date?-1:(a.date>b.date?1:((a.start||"")<(b.start||"")?-1:1)); });
+    var total=rows.reduce(function(s,r){return s+num(r.hours);},0);
+    var byProj={}; rows.forEach(function(r){ var k=r.project||"（未分類）"; byProj[k]=(byProj[k]||0)+num(r.hours); });
+    var pkeys=Object.keys(byProj).sort(function(a,b){return byProj[b]-byProj[a];});
+
+    var h='<h2>'+ym.replace("-","年")+'月 工作月報</h2>';
+    h+='<div class="sub">產生於 '+todayStr()+'　·　共 '+rows.length+' 筆紀錄　·　總工時 '+fmtHours(total)+' 小時</div>';
+
+    h+='<h3 style="font-size:15px;margin:12px 0 6px">各專案工時彙總</h3>';
+    h+='<table><thead><tr><th>專案 / 分類</th><th style="text-align:right">工時（小時）</th><th style="text-align:right">占比</th></tr></thead><tbody>';
+    pkeys.forEach(function(k){
+      var pct=total?(byProj[k]/total*100):0;
+      h+='<tr><td>'+esc(k)+'</td><td style="text-align:right">'+fmtHours(byProj[k])+'</td><td style="text-align:right">'+pct.toFixed(0)+'%</td></tr>';
+    });
+    h+='<tr class="rsum"><td>合計</td><td style="text-align:right">'+fmtHours(total)+'</td><td style="text-align:right">100%</td></tr>';
+    h+='</tbody></table>';
+
+    h+='<h3 style="font-size:15px;margin:16px 0 6px">每日明細</h3>';
+    if(!rows.length){ h+='<div class="sub">本月沒有紀錄。</div>'; }
+    else{
+      h+='<table><thead><tr><th>日期</th><th>時間</th><th>工作項目 / 內容</th><th style="text-align:right">工時</th><th>專案</th><th>狀態</th></tr></thead><tbody>';
+      var cd=null;
+      rows.forEach(function(r){
+        if(r.date!==cd){ cd=r.date; var ds=rows.filter(function(x){return x.date===cd;}).reduce(function(s,x){return s+num(x.hours);},0);
+          h+='<tr style="background:#f3f4f6"><td colspan="6"><b>'+esc(cd)+'</b>　當日小計 '+fmtHours(ds)+' 小時</td></tr>'; }
+        var t=(r.start||"")+(r.end?("–"+r.end):"");
+        h+='<tr><td></td><td>'+esc(t)+'</td><td>'+esc(r.content)+'</td><td style="text-align:right">'+(r.hours===""||r.hours==null?"—":fmtHours(num(r.hours)))+'</td><td>'+esc(r.project||"")+'</td><td>'+esc(r.status||"")+'</td></tr>';
+      });
+      h+='</tbody></table>';
+    }
+    $("reportContent").innerHTML=h;
+  }
+
+  // ============ 番茄鐘（獨立小浮窗） ============
+  function openPomodoro(){
+    var w=400, h=620;
+    var sx=(window.screen&&window.screen.availWidth)||window.innerWidth||1000;
+    var left=Math.max(0, sx-w-40), top=80;
+    var win=window.open("番茄鐘.html", "pomodoro",
+      "popup,width="+w+",height="+h+",left="+left+",top="+top);
+    if(!win){ alert("瀏覽器擋住了彈出視窗，請允許本頁的彈出視窗，或直接雙擊資料夾裡的「番茄鐘.html」。"); return; }
+    win.focus();
+  }
+
+  // ============ 啟動 ============
+  function init(){
+    loadPrefs(); applyDark();
+    fillForm(null);
+    fillProjForm(null);
+
+    if(!supportsFS){
+      $("btnLink").disabled=true;
+      $("btnLink").className="ghost";
+      if(localApi){
+        $("btnLink").textContent="正在啟用 Safari 本機存檔";
+        $("btnLink").title="由 Safari 版啟動器提供本機存檔服務。";
+        setStatus("正在連接 Safari 本機存檔服務", "dirty");
+      }else{
+        $("btnLink").textContent="Safari 不支援連結資料夾";
+        $("btnLink").title="Safari 無法直接連結資料夾；請用「載入備份 / 下載 JSON」，或改用 Chrome / Edge 啟用自動存檔。";
+        setStatus("此瀏覽器用「載入備份 / 下載 JSON」存取資料", "");
+      }
+    }
+    var local=loadLocal(); if(local) records=local;
+    var lp=loadProjLocal(); if(lp) projects=lp;
+
+    // 還原日期區間偏好
+    setRange(prefs.range||"all", true);
+    if(prefs.from) $("rFrom").value=prefs.from;
+    if(prefs.to) $("rTo").value=prefs.to;
+
+    // 還原上次停留的視圖（工作紀錄 / 專案）與專案清單模式（清單 / 四象限）
+    setView(prefs.tab||"work");
+    setProjList(prefs.projList||"list");
+
+    refresh();
+
+    // 表單
+    $("recForm").addEventListener("submit", onSubmit);
+    $("btnCancel").addEventListener("click", cancelEdit);
+    $("btnCopyLast").addEventListener("click", copyLast);
+    $("btnTimer").addEventListener("click", function(){ timer.running?stopTimer():startTimer(); });
+    $("f_start").addEventListener("change", recalcHours);
+    $("f_end").addEventListener("change", recalcHours);
+    $("f_hours").addEventListener("input", function(){ hoursManual = ($("f_hours").value!==""); });
+
+    // 工具列
+    $("btnDark").addEventListener("click", function(){ prefs.dark=!prefs.dark; savePrefs(); applyDark(); });
+    $("btnLink").addEventListener("click", linkFolder);
+    $("btnReconnect").addEventListener("click", reconnectClick);
+    $("btnLoad").addEventListener("click", function(){ $("fileInput").click(); });
+    $("btnDownload").addEventListener("click", function(){ downloadBlob("工作紀錄資料.json", JSON.stringify(records,null,2), "application/json"); dirty=false; });
+    $("btnBackup").addEventListener("click", function(){ downloadBlob("工作紀錄_"+nowStamp()+".json", JSON.stringify(records,null,2), "application/json"); });
+    $("btnProjDownload").addEventListener("click", function(){ downloadBlob("專案資料.json", JSON.stringify(projects,null,2), "application/json"); });
+    $("btnProjLoad").addEventListener("click", function(){ $("projFileInput").click(); });
+    $("btnImportCsv").addEventListener("click", function(){ $("csvInput").click(); });
+    $("btnCsv").addEventListener("click", exportCSV);
+    $("btnReport").addEventListener("click", openReport);
+    $("btnPomo").addEventListener("click", openPomodoro);
+
+    $("fileInput").addEventListener("change", function(e){
+      var f=e.target.files[0]; if(!f) return; var fr=new FileReader();
+      fr.onload=function(){ try{ importFromJsonText(fr.result); setStatus("已載入備份檔 · 記得按「下載 JSON」存回硬碟",""); }catch(err){ alert("載入失敗："+err.message); } };
+      fr.readAsText(f); e.target.value="";
+    });
+    $("projFileInput").addEventListener("change", function(e){
+      var f=e.target.files[0]; if(!f) return; var fr=new FileReader();
+      fr.onload=function(){ try{ importProjectsFromText(fr.result); setStatus("已載入專案備份 · 記得按「下載專案」或連結資料夾存回",""); }catch(err){ alert("載入專案失敗："+err.message); } };
+      fr.readAsText(f); e.target.value="";
+    });
+    $("csvInput").addEventListener("change", function(e){
+      var f=e.target.files[0]; if(!f) return; var fr=new FileReader();
+      fr.onload=function(){ try{ importCsvText(fr.result); }catch(err){ alert("匯入 CSV 失敗："+err.message); } };
+      fr.readAsText(f); e.target.value="";
+    });
+
+    // 篩選（任何條件改變都回到第 1 頁）
+    $("rangeSeg").addEventListener("click", function(e){
+      var b=e.target.closest("button[data-range]"); if(!b) return; setRange(b.getAttribute("data-range"));
+    });
+    $("rFrom").addEventListener("change", function(){ prefs.from=$("rFrom").value; savePrefs(); page=1; refresh(); });
+    $("rTo").addEventListener("change", function(){ prefs.to=$("rTo").value; savePrefs(); page=1; refresh(); });
+    ["filterProj","filterStatus"].forEach(function(id){ $(id).addEventListener("change", function(){ page=1; refresh(); }); });
+    $("filterKw").addEventListener("input", function(){ page=1; refresh(); });
+
+    // 分頁
+    $("pageSize").value=String(pageSize());
+    $("pageSize").addEventListener("change", function(){ prefs.pageSize=parseInt($("pageSize").value,10)||25; savePrefs(); page=1; refresh(); });
+    $("pagePrev").addEventListener("click", function(){ if(page>1) gotoPage(page-1); });
+    $("pageNext").addEventListener("click", function(){ gotoPage(page+1); });
+
+    // 清單委派
+    $("tbody").addEventListener("click", function(e){
+      var ed=e.target.getAttribute&&e.target.getAttribute("data-edit");
+      var dl=e.target.getAttribute&&e.target.getAttribute("data-del");
+      var rs=e.target.getAttribute&&e.target.getAttribute("data-rstatus");
+      if(ed) startEdit(ed); else if(dl) deleteRec(dl); else if(rs) pickRecStatus(e.target, rs);
+    });
+
+    // 視圖切換頁籤
+    $("viewTabs").addEventListener("click", function(e){
+      var b=e.target.closest("button[data-view]"); if(!b) return; setView(b.getAttribute("data-view"));
+    });
+    // 專案清單：清單 ↔ 四象限
+    $("projListTabs").addEventListener("click", function(e){
+      var b=e.target.closest("button[data-plist]"); if(!b) return; setProjList(b.getAttribute("data-plist"));
+    });
+    // 甘特圖：顯示／隱藏已完成專案
+    $("btnGanttDone").addEventListener("click", function(){ prefs.ganttShowDone=!prefs.ganttShowDone; savePrefs(); renderGantt(); });
+    // 四象限矩陣：拖曳卡片到象限格（或拖回待分類）
+    (function(){
+      var qb=$("quadBoard");
+      function clearOver(){ Array.prototype.forEach.call(qb.querySelectorAll(".mx-over"), function(z){ z.classList.remove("mx-over"); }); }
+      qb.addEventListener("dragstart", function(e){
+        var c=e.target.closest&&e.target.closest(".mx-card"); if(!c) return;
+        e.dataTransfer.setData("text/plain", c.getAttribute("data-pid")+"|"+c.getAttribute("data-iid"));
+        e.dataTransfer.effectAllowed="move"; c.classList.add("dragging");
+      });
+      qb.addEventListener("dragend", function(){ clearOver(); var d=qb.querySelector(".mx-card.dragging"); if(d) d.classList.remove("dragging"); });
+      qb.addEventListener("dragover", function(e){
+        var z=e.target.closest&&e.target.closest("[data-quad]"); if(!z) return;
+        e.preventDefault(); e.dataTransfer.dropEffect="move";
+        if(!z.classList.contains("mx-over")){ clearOver(); z.classList.add("mx-over"); }
+      });
+      qb.addEventListener("drop", function(e){
+        var z=e.target.closest&&e.target.closest("[data-quad]"); if(!z) return;
+        e.preventDefault(); clearOver();
+        var parts=((e.dataTransfer&&e.dataTransfer.getData("text/plain"))||"").split("|");
+        if(parts.length<2) return;
+        itemSet(parts[0], parts[1], { quad: z.getAttribute("data-quad") });
+      });
+    })();
+
+    // 專案表單與清單
+    $("projForm").addEventListener("submit", onSubmitProj);
+    $("btnProjCancel").addEventListener("click", cancelEditProj);
+    $("ptbody").addEventListener("click", function(e){
+      var t=e.target;
+      var ed=t.getAttribute&&t.getAttribute("data-pedit");
+      var dl=t.getAttribute&&t.getAttribute("data-pdel");
+      if(ed){ startEditProj(ed); return; }
+      if(dl){ deleteProj(dl); return; }
+      var node=(t.getAttribute&&t.getAttribute("data-act"))?t:(t.closest?t.closest("[data-act]"):null);
+      if(!node) return;
+      var act=node.getAttribute("data-act"), pid=node.getAttribute("data-pid");
+      if(act==="expand"){ expanded[pid]=!expanded[pid]; renderProjTable(); }
+      else if(act==="pdone"){ prefs.projDoneOpen=!prefs.projDoneOpen; savePrefs(); renderProjTable(); }
+      else if(act==="pstatus"){ pickProjStatus(node, pid); }
+      else if(act==="idel"){ itemDelete(pid, node.getAttribute("data-iid")); }
+      else if(act==="iadd"){ addItemFromRow(node.closest(".ci-add")); }
+      else if(act==="iwork"){ logItemToWork(pid, node.getAttribute("data-iid"), node); }
+    });
+    // 邊打邊記新子項目標題（即使 IME 組字中／之後失焦也不會丟）
+    $("ptbody").addEventListener("input", function(e){
+      var t=e.target; if(!(t.matches&&t.matches("[data-newtitle]"))) return;
+      var box=t.closest(".ci-add"), btn=box&&box.querySelector('[data-act="iadd"]');
+      if(btn) itemDrafts[btn.getAttribute("data-pid")]=t.value;
+    });
+    // 在標題欄按 Enter 也能新增（IME 組字中的 Enter 不觸發）
+    $("ptbody").addEventListener("keydown", function(e){
+      if(e.key!=="Enter") return;
+      var t=e.target; if(!(t.matches&&t.matches("[data-newtitle]"))) return;
+      if(e.isComposing||e.keyCode===229) return;
+      e.preventDefault(); addItemFromRow(t.closest(".ci-add"));
+    });
+    $("ptbody").addEventListener("change", function(e){
+      var t=e.target, act=t.getAttribute&&t.getAttribute("data-act"); if(!act) return;
+      var pid=t.getAttribute("data-pid"), iid=t.getAttribute("data-iid");
+      if(act==="toggle"){ itemSet(pid, iid, {done:t.checked}); }
+      else if(act==="title"){ var v=(t.value||"").trim(); if(v){ itemSet(pid, iid, {title:v}); } else { t.value=itemGet(pid,iid).title||""; } }
+      else if(act==="date"){ itemSet(pid, iid, {due:t.value||""}); }
+    });
+
+    // 月報
+    $("btnReportClose").addEventListener("click", function(){ $("reportOverlay").classList.remove("show"); });
+    $("btnReportRefresh").addEventListener("click", buildReport);
+    $("reportMonth").addEventListener("change", buildReport);
+    $("btnPrint").addEventListener("click", function(){ window.print(); });
+    $("reportOverlay").addEventListener("click", function(e){ if(e.target===$("reportOverlay")) $("reportOverlay").classList.remove("show"); });
+
+    // 離開前未存檔提醒
+    window.addEventListener("beforeunload", function(e){ if(dirty){ e.preventDefault(); e.returnValue=""; } });
+
+    // 視窗間同步：番茄鐘浮窗或另一個分頁存檔時，本頁自動重載，避免用舊資料覆蓋
+    window.addEventListener("storage", function(e){
+      if(e.key===LS_DATA){ var a=loadLocal(); if(a){ records=a; refreshWork(); } }
+      else if(e.key===LS_PROJ){ var p=loadProjLocal(); if(p){ projects=p; refreshProjects(); } }
+    });
+
+    // 接回進行中的計時器（重整不歸零）
+    restoreTimer();
+
+    // 嘗試自動接回上次的資料夾
+    tryAutoReconnect();
+    if(localApi) connectLocalApi(true);
+  }
+
+  function setRange(range, silent){
+    prefs.range=range; if(!silent){ savePrefs(); page=1; }
+    Array.prototype.forEach.call($("rangeSeg").children, function(b){ b.classList.toggle("on", b.getAttribute("data-range")===range); });
+    $("rangeCustom").classList.toggle("show", range==="custom");
+    if(!silent) refresh();
+  }
+
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
+</script>
+</body>
+</html>
